@@ -66,10 +66,10 @@ Should we validate the schema before or after the DB write?
 
 | Type     | Colour   | Intent                           |
 | -------- | -------- | -------------------------------- |
-| Story    | 🟡 Yellow | User stories / narrative context |
-| Rule     | 🔵 Blue   | Constraints / business rules     |
-| Example  | 🟢 Green  | Concrete examples / test cases   |
-| Question | 🔴 Red    | Open questions / blockers        |
+| Story    | Yellow   | User stories / narrative context |
+| Rule     | Blue     | Constraints / business rules     |
+| Example  | Green    | Concrete examples / test cases   |
+| Question | Red      | Open questions / blockers       |
 
 ## Cursor Agent Workflow
 

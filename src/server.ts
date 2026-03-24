@@ -16,8 +16,22 @@ import type {
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;
-const CONTEXT_DIR = path.resolve(__dirname, "../context_files");
 const PUBLIC_DIR = path.resolve(__dirname, "../client/dist");
+
+function loadConfig(): { outputDir: string } {
+  const configPath = path.resolve(__dirname, "../config.json");
+  const defaults = { outputDir: "./context_files" };
+  try {
+    const raw = fs.readFileSync(configPath, "utf-8");
+    return { ...defaults, ...JSON.parse(raw) };
+  } catch {
+    console.log("Warning: No config.json found, using defaults");
+    return defaults;
+  }
+}
+
+const config = loadConfig();
+const CONTEXT_DIR = path.resolve(__dirname, "..", config.outputDir);
 
 const NOTE_TYPES: NoteType[] = ["Story", "Rule", "Example", "Question"];
 
