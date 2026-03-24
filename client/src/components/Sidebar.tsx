@@ -2,10 +2,10 @@ import { useState } from "react";
 import type { NoteType } from "../types";
 
 const NOTE_TYPES: { type: NoteType; label: string }[] = [
-  { type: "Story", label: "📖 Story" },
-  { type: "Rule", label: "📐 Rule" },
-  { type: "Example", label: "✅ Example" },
-  { type: "Question", label: "❓ Question" },
+  { type: "Story", label: "Story" },
+  { type: "Rule", label: "Rule" },
+  { type: "Example", label: "Example" },
+  { type: "Question", label: "Question" },
 ];
 
 const FILTERS = ["All", "Story", "Rule", "Example", "Question"];

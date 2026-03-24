@@ -37,7 +37,7 @@ const NOTE_TYPES: NoteType[] = ["Story", "Rule", "Example", "Question"];
 
 if (!fs.existsSync(CONTEXT_DIR)) {
   fs.mkdirSync(CONTEXT_DIR, { recursive: true });
-  console.log(`📁 Created context_files/ at ${CONTEXT_DIR}`);
+  console.log(`Created context_files/ at ${CONTEXT_DIR}`);
 }
 
 // ─── Express ─────────────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ function scanCounters(): void {
       }
     }
   }
-  console.log("📊 Counters after scan:", counters);
+  console.log("Counters after scan:", counters);
 }
 
 function nextId(type: NoteType): string {
@@ -154,7 +154,7 @@ loadAllNotes().forEach((n) => noteIndex.set(n.id, n));
 // ─── Socket Events ────────────────────────────────────────────────────────────
 
 io.on("connection", (socket) => {
-  console.log(`🔌 Client connected: ${socket.id}`);
+  console.log(`Client connected: ${socket.id}`);
 
   socket.emit("init_notes", [...noteIndex.values()]);
 
@@ -170,7 +170,7 @@ io.on("connection", (socket) => {
 
     const note: Note = { id, author, type, content, timestamp, relPath };
     fs.writeFileSync(absPath(relPath), buildMarkdown(note), "utf-8");
-    console.log(`📝 Saved: context_files/${relPath}`);
+    console.log(`Saved: context_files/${relPath}`);
 
     noteIndex.set(id, note);
     io.emit("note_added", note);
@@ -179,18 +179,18 @@ io.on("connection", (socket) => {
   socket.on("edit_note", ({ id, content }) => {
     const note = noteIndex.get(id);
     if (!note) {
-      console.warn(`⚠️  edit_note: unknown id "${id}"`);
+      console.warn(`edit_note: unknown id "${id}"`);
       return;
     }
     const updated: Note = { ...note, content };
     fs.writeFileSync(absPath(updated.relPath), buildMarkdown(updated), "utf-8");
-    console.log(`✏️  Updated: context_files/${updated.relPath}`);
+    console.log(`Updated: context_files/${updated.relPath}`);
     noteIndex.set(id, updated);
     io.emit("note_updated", updated);
   });
 
   socket.on("disconnect", () => {
-    console.log(`❌ Client disconnected: ${socket.id}`);
+    console.log(`Client disconnected: ${socket.id}`);
   });
 });
 
@@ -206,7 +206,7 @@ fs.watch(CONTEXT_DIR, { recursive: true }, (eventType, filename) => {
     for (const [id, note] of noteIndex.entries()) {
       if (note.relPath === relPath) {
         noteIndex.delete(id);
-        console.log(`🗑️  Removed: context_files/${relPath}`);
+        console.log(`Removed: context_files/${relPath}`);
         io.emit("note_removed", id);
         break;
       }
@@ -217,6 +217,6 @@ fs.watch(CONTEXT_DIR, { recursive: true }, (eventType, filename) => {
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 httpServer.listen(PORT, () => {
-  console.log(`\n🚀 Mapping Tool running at http://localhost:${PORT}`);
-  console.log(`📂 context_files/ → ${CONTEXT_DIR}\n`);
+  console.log(`\nMapping Tool running at http://localhost:${PORT}`);
+  console.log(`context_files/ -> ${CONTEXT_DIR}\n`);
 });
