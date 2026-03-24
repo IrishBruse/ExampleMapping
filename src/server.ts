@@ -17,7 +17,7 @@ import type {
 
 const PORT = process.env.PORT || 3000;
 const CONTEXT_DIR = path.resolve(__dirname, "../context_files");
-const PUBLIC_DIR = path.resolve(__dirname, "../public");
+const PUBLIC_DIR = path.resolve(__dirname, "../client/dist");
 
 const NOTE_TYPES: NoteType[] = ["Story", "Rule", "Example", "Question"];
 
