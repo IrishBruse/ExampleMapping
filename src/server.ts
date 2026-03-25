@@ -151,12 +151,29 @@ scanCounters();
 const noteIndex = new Map<string, Note>();
 loadAllNotes().forEach((n) => noteIndex.set(n.id, n));
 
+// ─── Connected users ──────────────────────────────────────────────────────────
+// Maps socket.id → display name (empty string until set_username is received)
+
+const connectedUsers = new Map<string, string>();
+
+function broadcastUsers(): void {
+  const names = [...connectedUsers.values()].filter((n) => n.trim().length > 0);
+  io.emit("users_changed", names);
+}
+
 // ─── Socket Events ────────────────────────────────────────────────────────────
 
 io.on("connection", (socket) => {
   console.log(`Client connected: ${socket.id}`);
+  connectedUsers.set(socket.id, "");
+  broadcastUsers();
 
   socket.emit("init_notes", [...noteIndex.values()]);
+
+  socket.on("set_username", (name: string) => {
+    connectedUsers.set(socket.id, name.trim().slice(0, 32));
+    broadcastUsers();
+  });
 
   socket.on("new_note", ({ author, type, content }) => {
     const id = nextId(type);
@@ -191,6 +208,8 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log(`Client disconnected: ${socket.id}`);
+    connectedUsers.delete(socket.id);
+    broadcastUsers();
   });
 });
 

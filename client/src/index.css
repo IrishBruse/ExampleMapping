@@ -472,6 +472,57 @@ main {
   letter-spacing: 0.06em;
 }
 
+/* ── Connected users ── */
+.user-count {
+  color: var(--accent);
+}
+
+.user-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.user-list-empty {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: italic;
+}
+
+.user-list-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text);
+  letter-spacing: 0.03em;
+}
+
+.user-list-item--you {
+  color: var(--accent);
+}
+
+.user-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4caf50;
+  flex-shrink: 0;
+  box-shadow: 0 0 4px #4caf50;
+}
+
+.user-you-badge {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: rgba(240, 224, 64, 0.15);
+  color: var(--accent);
+  border-radius: 2px;
+  padding: 1px 5px;
+  margin-left: auto;
+}
+
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;

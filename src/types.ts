@@ -26,6 +26,8 @@ export interface ServerToClientEvents {
   note_updated: (note: Note) => void;
   /** Broadcast when a file is deleted from context_files/ */
   note_removed: (id: string) => void;
+  /** Broadcast whenever the set of connected users changes */
+  users_changed: (users: string[]) => void;
 }
 
 export interface ClientToServerEvents {
@@ -37,4 +39,6 @@ export interface ClientToServerEvents {
   }) => void;
   /** Owner edits their own note */
   edit_note: (payload: { id: string; content: string }) => void;
+  /** Client sets or updates their display name */
+  set_username: (name: string) => void;
 }

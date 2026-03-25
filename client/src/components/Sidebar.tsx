@@ -16,6 +16,7 @@ interface SidebarProps {
   activeFilter: string;
   onFilterChange: (filter: string) => void;
   onPost: (author: string, type: string, content: string) => void;
+  connectedUsers: string[];
 }
 
 export default function Sidebar({
@@ -24,6 +25,7 @@ export default function Sidebar({
   activeFilter,
   onFilterChange,
   onPost,
+  connectedUsers,
 }: SidebarProps) {
   const [selectedType, setSelectedType] = useState<NoteType>("Story");
   const [content, setContent] = useState("");
@@ -106,6 +108,31 @@ export default function Sidebar({
             </button>
           ))}
         </div>
+      </div>
+
+      <hr className="divider" />
+
+      <div>
+        <div className="field-label">
+          Connected&nbsp;
+          <span className="user-count">{connectedUsers.length}</span>
+        </div>
+        <ul className="user-list">
+          {connectedUsers.length === 0 ? (
+            <li className="user-list-empty">no one yet</li>
+          ) : (
+            connectedUsers.map((name) => (
+              <li
+                key={name}
+                className={`user-list-item${name === currentAuthor ? " user-list-item--you" : ""}`}
+              >
+                <span className="user-dot" />
+                {name}
+                {name === currentAuthor && <span className="user-you-badge">you</span>}
+              </li>
+            ))
+          )}
+        </ul>
       </div>
     </aside>
   );

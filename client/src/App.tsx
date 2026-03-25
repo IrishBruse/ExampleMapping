@@ -10,6 +10,7 @@ export default function App() {
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
   const [activeFilter, setActiveFilter] = useState<string>("All");
   const [currentAuthor, setCurrentAuthor] = useState("");
+  const [connectedUsers, setConnectedUsers] = useState<string[]>([]);
 
   useEffect(() => {
     const onConnect = () => setConnected(true);
@@ -39,12 +40,15 @@ export default function App() {
       });
     };
 
+    const onUsersChanged = (users: string[]) => setConnectedUsers(users);
+
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("init_notes", onInitNotes);
     socket.on("note_added", onNoteAdded);
     socket.on("note_updated", onNoteUpdated);
     socket.on("note_removed", onNoteRemoved);
+    socket.on("users_changed", onUsersChanged);
 
     return () => {
       socket.off("connect", onConnect);
@@ -53,7 +57,13 @@ export default function App() {
       socket.off("note_added", onNoteAdded);
       socket.off("note_updated", onNoteUpdated);
       socket.off("note_removed", onNoteRemoved);
+      socket.off("users_changed", onUsersChanged);
     };
+  }, []);
+
+  const handleAuthorChange = useCallback((name: string) => {
+    setCurrentAuthor(name);
+    socket.emit("set_username", name);
   }, []);
 
   const handleEdit = useCallback((id: string, content: string) => {
@@ -69,10 +79,11 @@ export default function App() {
       <Header connected={connected} noteCount={notes.size} />
       <Sidebar
         currentAuthor={currentAuthor}
-        onAuthorChange={setCurrentAuthor}
+        onAuthorChange={handleAuthorChange}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
         onPost={handlePost}
+        connectedUsers={connectedUsers}
       />
       <Board
         notes={notes}
