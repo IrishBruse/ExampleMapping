@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PORT="${PORT:-3000}"
-NETSKOPE_CA="/Library/Application Support/Netskope/STAgent/data/nscacert.pem"
+CONFIG_FILE="$(cd "$(dirname "$0")/.." && pwd)/config.json"
 
 if ! command -v cloudflared &>/dev/null; then
   echo "cloudflared not found. Install it with:"
@@ -10,12 +10,44 @@ if ! command -v cloudflared &>/dev/null; then
   exit 1
 fi
 
-echo "Starting Cloudflare tunnel for http://localhost:${PORT} ..."
-
-if [ -f "$NETSKOPE_CA" ]; then
-  echo "(Netskope CA detected — passing --origin-ca-pool)"
-  exec cloudflared tunnel --url "http://localhost:${PORT}" \
-    --origin-ca-pool "$NETSKOPE_CA"
-else
-  exec cloudflared tunnel --url "http://localhost:${PORT}"
+ACCESS_TOKEN=""
+if command -v node &>/dev/null && [ -f "$CONFIG_FILE" ]; then
+  ACCESS_TOKEN="$(node -e "try{const c=require('$CONFIG_FILE');process.stdout.write(c.accessToken||'')}catch(e){}")"
 fi
+
+TUNNEL_URL_FILE="$(mktemp)"
+
+show_share_link() {
+  local base_url="$1"
+  echo ""
+  echo ""
+  echo ""
+  if [ -n "$ACCESS_TOKEN" ]; then
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  Share this link with your teammates (Netskope required):"
+    echo "  ${base_url}/?token=${ACCESS_TOKEN}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  else
+    echo "  Tunnel URL: ${base_url}"
+    echo "  (No access token configured — server is open)"
+  fi
+    echo ""
+    echo ""
+    echo ""
+}
+
+start_tunnel() {
+  cloudflared tunnel --url "http://localhost:${PORT}" 2>&1 | \
+    while IFS= read -r line; do
+      echo "$line"
+      if [[ "$line" =~ https://[a-z0-9-]+\.trycloudflare\.com ]] && [ ! -s "$TUNNEL_URL_FILE" ]; then
+        local url="${BASH_REMATCH[0]}"
+        echo "$url" > "$TUNNEL_URL_FILE"
+        show_share_link "$url"
+      fi
+    done
+}
+
+echo "Starting Cloudflare tunnel for http://localhost:${PORT} ..."
+start_tunnel
+rm -f "$TUNNEL_URL_FILE"
