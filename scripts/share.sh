@@ -20,19 +20,15 @@ TUNNEL_URL_FILE="$(mktemp)"
 show_share_link() {
   local base_url="$1"
   echo ""
-  echo ""
-  echo ""
   if [ -n "$ACCESS_TOKEN" ]; then
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "  Share this link with your teammates (Netskope required):"
     echo "  ${base_url}/?token=${ACCESS_TOKEN}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   else
-    echo "  Tunnel URL: ${base_url}"
-    echo "  (No access token configured — server is open)"
+    echo "Missing access-token in config"
+    exit 1
   fi
-    echo ""
-    echo ""
     echo ""
 }
 
