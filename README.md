@@ -83,6 +83,30 @@ Should we validate the schema before or after the DB write?
 3. As your team posts red cards in the browser, `.md` files appear in your IDE
    in real-time. The agent responds immediately.
 
+## Sharing with Teammates
+
+The server proxies to the internet via [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/), which makes an outbound HTTPS connection on port 443 — compatible with Netskope. Socket.io WebSocket traffic is carried through the same tunnel automatically.
+
+**One-time setup:**
+
+```bash
+brew install cloudflare/cloudflare/cloudflared
+```
+
+**Each session — two terminals:**
+
+```bash
+# Terminal 1 — start the server
+npm run dev
+
+# Terminal 2 — open the tunnel
+npm run share
+```
+
+`cloudflared` prints a public URL like `https://random-words.trycloudflare.com`. Send that to your teammates — they open it in a browser and are live on your board. The `share` script auto-detects the Netskope CA cert at the standard macOS path and passes it to `cloudflared` if present.
+
+> **Custom port:** `PORT=8080 npm run share`
+
 ## Keyboard Shortcuts
 
 | Shortcut                 | Action    |
