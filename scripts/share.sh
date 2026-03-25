@@ -39,7 +39,7 @@ show_share_link() {
 start_tunnel() {
   cloudflared tunnel --url "http://localhost:${PORT}" 2>&1 | \
     while IFS= read -r line; do
-      echo "$line"
+    #   echo "$line" # uncomment for debug logs
       if [[ "$line" =~ https://[a-z0-9-]+\.trycloudflare\.com ]] && [ ! -s "$TUNNEL_URL_FILE" ]; then
         local url="${BASH_REMATCH[0]}"
         echo "$url" > "$TUNNEL_URL_FILE"
