@@ -702,7 +702,9 @@ function scheduleContextDirEffects(): void {
 // ─── Socket Events ────────────────────────────────────────────────────────────
 
 io.on("connection", (socket) => {
-    console.log(`Client connected: ${socket.id}`);
+    console.log(
+        `[${new Date().toISOString()}] Client connected: ${socket.id}`,
+    );
     connectedUsers.set(socket.id, "");
     broadcastUsers();
 
@@ -918,7 +920,11 @@ io.on("connection", (socket) => {
     });
 
     socket.on("disconnect", () => {
-        console.log(`Client disconnected: ${socket.id}`);
+        const displayName = connectedUsers.get(socket.id)?.trim();
+        const who = displayName ? `"${displayName}"` : "(name not set)";
+        console.log(
+            `[${new Date().toISOString()}] Client disconnected: ${socket.id} ${who}`,
+        );
         releaseLocksHeldBySocket(socket.id);
         connectedUsers.delete(socket.id);
         broadcastUsers();
