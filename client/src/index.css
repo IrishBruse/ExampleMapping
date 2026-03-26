@@ -18,6 +18,7 @@
     --font-display: "Bebas Neue", sans-serif;
     --radius: 2px;
     --panel-w: 300px;
+    --card-w: 280px;
 }
 
 *,
@@ -561,7 +562,7 @@ main {
 
 /* ── Card ── */
 .card {
-    width: 210px;
+    width: var(--card-w);
     min-height: 170px;
     padding: 12px;
     border-radius: 3px;
