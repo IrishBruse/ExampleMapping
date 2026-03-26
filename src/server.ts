@@ -268,6 +268,12 @@ function absPath(relPath: string): string {
     return path.join(CONTEXT_DIR, relPath);
 }
 
+/** Create parent dirs then write — avoids ENOENT if the context tree was removed and recreated. */
+function writeFileEnsuringDir(absFilePath: string, content: string): void {
+    fs.mkdirSync(path.dirname(absFilePath), { recursive: true });
+    fs.writeFileSync(absFilePath, content, "utf-8");
+}
+
 function sourceFrontmatter(note: Note): string {
     return note.isAi ? "Source: ai\n" : "";
 }
@@ -305,12 +311,13 @@ function noteFileExtension(type: NoteType): "md" | "feature" {
 }
 
 function writeNoteToDisk(note: Note): void {
+    const p = absPath(note.relPath);
     if (note.type === "Rule") {
-        fs.writeFileSync(absPath(note.relPath), buildRuleMarkdown(note), "utf-8");
+        writeFileEnsuringDir(p, buildRuleMarkdown(note));
     } else if (note.type === "Feature") {
-        fs.writeFileSync(absPath(note.relPath), buildFeatureFile(note), "utf-8");
+        writeFileEnsuringDir(p, buildFeatureFile(note));
     } else {
-        fs.writeFileSync(absPath(note.relPath), buildMarkdown(note), "utf-8");
+        writeFileEnsuringDir(p, buildMarkdown(note));
     }
 }
 
@@ -348,7 +355,7 @@ function normalizeExampleRuleLinks(): void {
         const next = n.ruleIds.filter((id) => ruleIdSet.has(id));
         if (next.length !== n.ruleIds.length) {
             n.ruleIds = next;
-            fs.writeFileSync(absPath(n.relPath), buildMarkdown(n), "utf-8");
+            writeFileEnsuringDir(absPath(n.relPath), buildMarkdown(n));
         }
     }
 }
@@ -361,7 +368,7 @@ function migrateLegacyExampleFiles(): void {
     for (const n of noteIndex.values()) {
         if (n.type !== "Example" || n.ruleIds !== undefined) continue;
         n.ruleIds = [...allRuleIds];
-        fs.writeFileSync(absPath(n.relPath), buildMarkdown(n), "utf-8");
+        writeFileEnsuringDir(absPath(n.relPath), buildMarkdown(n));
     }
 }
 
@@ -408,7 +415,7 @@ function rebuildAllRuleFiles(): void {
 
     for (const rule of rules) {
         const md = buildRuleMarkdown(rule);
-        fs.writeFileSync(absPath(rule.relPath), md, "utf-8");
+        writeFileEnsuringDir(absPath(rule.relPath), md);
     }
 }
 
@@ -586,7 +593,7 @@ function deleteNoteById(id: string): string[] | null {
         }
         for (const n of toUpdate) {
             noteIndex.set(n.id, n);
-            fs.writeFileSync(absPath(n.relPath), buildMarkdown(n), "utf-8");
+            writeFileEnsuringDir(absPath(n.relPath), buildMarkdown(n));
         }
     }
 
@@ -739,8 +746,7 @@ io.on("connection", (socket) => {
             return;
         }
         try {
-            fs.mkdirSync(path.dirname(abs), { recursive: true });
-            fs.writeFileSync(abs, content, "utf-8");
+            writeFileEnsuringDir(abs, content);
             console.log(`Agent file saved: ${abs}`);
             io.emit("agent_files_updated", buildAgentPayload());
         } catch (e) {
