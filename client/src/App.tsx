@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type { Note, NoteType } from "./types";
+import type { Note, NoteType, AgentFilesPayload } from "./types";
 import { socket } from "./socket";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
@@ -23,6 +23,12 @@ export default function App() {
   const [pendingExampleRuleId, setPendingExampleRuleId] = useState<string | null>(
     null,
   );
+  const [agentFilesPayload, setAgentFilesPayload] = useState<AgentFilesPayload>({
+    enabled: false,
+    label: "",
+    watchPath: "",
+    files: [],
+  });
 
   useEffect(() => {
     const onConnect = () => {
@@ -91,6 +97,13 @@ export default function App() {
       }
     };
 
+    const onInitAgentFiles = (payload: AgentFilesPayload) => {
+      setAgentFilesPayload(payload);
+    };
+    const onAgentFilesUpdated = (payload: AgentFilesPayload) => {
+      setAgentFilesPayload(payload);
+    };
+
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("init_notes", onInitNotes);
@@ -102,6 +115,8 @@ export default function App() {
     socket.on("init_edit_locks", onInitEditLocks);
     socket.on("note_edit_lock_changed", onNoteEditLockChanged);
     socket.on("begin_edit_result", onBeginEditResult);
+    socket.on("init_agent_files", onInitAgentFiles);
+    socket.on("agent_files_updated", onAgentFilesUpdated);
 
     return () => {
       socket.off("connect", onConnect);
@@ -115,6 +130,8 @@ export default function App() {
       socket.off("init_edit_locks", onInitEditLocks);
       socket.off("note_edit_lock_changed", onNoteEditLockChanged);
       socket.off("begin_edit_result", onBeginEditResult);
+      socket.off("init_agent_files", onInitAgentFiles);
+      socket.off("agent_files_updated", onAgentFilesUpdated);
     };
   }, []);
 
@@ -199,6 +216,10 @@ export default function App() {
     setPendingExampleRuleId(null);
   }, []);
 
+  const handleSaveAgentFile = useCallback((relPath: string, content: string) => {
+    socket.emit("save_agent_file", { relPath, content });
+  }, []);
+
   return (
     <>
       <Header connected={connected} noteCount={notes.size} />
@@ -212,6 +233,8 @@ export default function App() {
         rules={ruleNotes}
         pendingExampleRuleId={pendingExampleRuleId}
         onPendingExampleConsumed={handlePendingExampleConsumed}
+        agentFiles={agentFilesPayload}
+        onSaveAgentFile={handleSaveAgentFile}
       />
       <Board
         notes={notes}

@@ -56,6 +56,7 @@ const AGENT_TEXT_EXT = new Set([
     ".cjs",
     ".yaml",
     ".yml",
+    ".feature",
 ]);
 
 function isAgentTextFile(name: string): boolean {
@@ -63,6 +64,19 @@ function isAgentTextFile(name: string): boolean {
     const dot = lower.lastIndexOf(".");
     if (dot === -1) return true;
     return AGENT_TEXT_EXT.has(lower.slice(dot));
+}
+
+/** Resolve a relative path under AGENT_DIR only; rejects `..` and escapes. */
+function safeResolvedPathUnderAgent(relPath: string): string | null {
+    const norm = relPath.replace(/\\/g, "/").replace(/^\/+/, "");
+    const parts = norm.split("/").filter((p) => p.length > 0);
+    if (parts.length === 0) return null;
+    if (parts.some((p) => p === "..")) return null;
+    const full = path.resolve(AGENT_DIR, ...parts);
+    const root = path.resolve(AGENT_DIR);
+    const rel = path.relative(root, full);
+    if (rel.startsWith("..") || path.isAbsolute(rel)) return null;
+    return full;
 }
 
 function scanAgentFiles(root: string): AgentFileEntry[] {
@@ -121,7 +135,7 @@ function buildAgentPayload(): AgentFilesPayload {
     };
 }
 
-const NOTE_TYPES: NoteType[] = ["Story", "Rule", "Example", "Question"];
+const NOTE_TYPES: NoteType[] = ["Story", "Rule", "Example", "Question", "Feature"];
 
 if (!fs.existsSync(CONTEXT_DIR)) {
     fs.mkdirSync(CONTEXT_DIR, { recursive: true });
@@ -210,7 +224,13 @@ io.use((socket, next) => {
 // ─── Per-type counters ────────────────────────────────────────────────────────
 // Scanned from disk on startup; incremented on each new note.
 
-const counters: TypeCounters = { Story: 0, Rule: 0, Example: 0, Question: 0 };
+const counters: TypeCounters = {
+    Story: 0,
+    Rule: 0,
+    Example: 0,
+    Question: 0,
+    Feature: 0,
+};
 
 function scanCounters(): void {
     if (!fs.existsSync(CONTEXT_DIR)) return;
@@ -218,8 +238,7 @@ function scanCounters(): void {
         if (!entry.isDirectory()) continue;
         const userDir = path.join(CONTEXT_DIR, entry.name);
         for (const file of fs.readdirSync(userDir)) {
-            if (!file.endsWith(".md")) continue;
-            const match = file.match(/^([A-Za-z]+)_(\d+)\.md$/);
+            const match = file.match(/^([A-Za-z]+)_(\d+)\.(md|feature)$/);
             if (!match) continue;
             const type = match[1] as NoteType;
             const n = parseInt(match[2], 10);
@@ -267,6 +286,32 @@ ${sourceFrontmatter(note)}${rulesFm}---
 # ${note.type}
 ${note.content}
 `;
+}
+
+/** Gherkin body only — no markdown heading (valid .feature for Cucumber-style tools). */
+function buildFeatureFile(note: Note): string {
+    return `---
+Author: ${note.author}
+Type: ${note.type}
+ID: ${note.id}
+Time: ${note.timestamp}
+${sourceFrontmatter(note)}---
+${note.content}
+`;
+}
+
+function noteFileExtension(type: NoteType): "md" | "feature" {
+    return type === "Feature" ? "feature" : "md";
+}
+
+function writeNoteToDisk(note: Note): void {
+    if (note.type === "Rule") {
+        fs.writeFileSync(absPath(note.relPath), buildRuleMarkdown(note), "utf-8");
+    } else if (note.type === "Feature") {
+        fs.writeFileSync(absPath(note.relPath), buildFeatureFile(note), "utf-8");
+    } else {
+        fs.writeFileSync(absPath(note.relPath), buildMarkdown(note), "utf-8");
+    }
 }
 
 function parseRulesLine(raw: string): string[] | undefined {
@@ -370,19 +415,38 @@ function rebuildAllRuleFiles(): void {
 function parseNoteFile(relPath: string): Note | null {
     try {
         const raw = fs.readFileSync(absPath(relPath), "utf-8");
-        const author = raw.match(/^Author:\s*(.+)$/m)?.[1]?.trim();
-        const type = raw.match(/^Type:\s*(.+)$/m)?.[1]?.trim() as
+        const split = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+        if (!split) return null;
+        const fmBlock = split[1];
+        const afterFm = split[2];
+        const author = fmBlock.match(/^Author:\s*(.+)$/m)?.[1]?.trim();
+        const type = fmBlock.match(/^Type:\s*(.+)$/m)?.[1]?.trim() as
             | NoteType
             | undefined;
-        const id = raw.match(/^ID:\s*(.+)$/m)?.[1]?.trim();
-        const time = raw.match(/^Time:\s*(.+)$/m)?.[1]?.trim();
-        const sourceRaw = raw.match(/^Source:\s*(.+)$/m)?.[1]?.trim().toLowerCase();
-        let content = raw.match(/^#\s*.+\n([\s\S]+)$/m)?.[1]?.trim();
-        if (!author || !type || !id || !time || !content) return null;
-        if (type === "Rule") {
-            content = stripRuleExamplesSectionFromBody(content);
+        const id = fmBlock.match(/^ID:\s*(.+)$/m)?.[1]?.trim();
+        const time = fmBlock.match(/^Time:\s*(.+)$/m)?.[1]?.trim();
+        const sourceRaw = fmBlock
+            .match(/^Source:\s*(.+)$/m)?.[1]
+            ?.trim()
+            .toLowerCase();
+        if (!author || !type || !id || !time || !NOTE_TYPES.includes(type)) {
+            return null;
         }
-        const parsedRules = parseRulesLine(raw);
+
+        let content: string;
+        if (type === "Feature") {
+            content = afterFm.replace(/\s+$/, "");
+        } else {
+            const bodyMatch = afterFm.match(/^#\s*.+\n([\s\S]+)/m);
+            content = bodyMatch?.[1]?.trim() ?? "";
+            if (!content) return null;
+            if (type === "Rule") {
+                content = stripRuleExamplesSectionFromBody(content);
+            }
+        }
+        if (!content) return null;
+
+        const parsedRules = parseRulesLine(fmBlock);
         const note: Note = {
             id,
             author,
@@ -410,7 +474,7 @@ function loadAllNotes(): Note[] {
         if (!entry.isDirectory()) continue;
         const userDir = path.join(CONTEXT_DIR, entry.name);
         for (const file of fs.readdirSync(userDir)) {
-            if (!file.endsWith(".md")) continue;
+            if (!file.endsWith(".md") && !file.endsWith(".feature")) continue;
             const note = parseNoteFile(`${entry.name}/${file}`);
             if (note) notes.push(note);
         }
@@ -643,6 +707,50 @@ io.on("connection", (socket) => {
         broadcastUsers();
     });
 
+    socket.on("save_agent_file", ({ relPath, content }) => {
+        const displayName = getSocketDisplayName(socket.id);
+        if (!displayName) {
+            socket.emit("note_error", {
+                message:
+                    "Set your display name in the sidebar before saving agent files.",
+            });
+            return;
+        }
+        if (typeof relPath !== "string" || typeof content !== "string") {
+            socket.emit("note_error", { message: "Invalid save request." });
+            return;
+        }
+        const abs = safeResolvedPathUnderAgent(relPath);
+        if (!abs) {
+            socket.emit("note_error", { message: "Invalid file path." });
+            return;
+        }
+        if (!abs.toLowerCase().endsWith(".feature")) {
+            socket.emit("note_error", {
+                message: "Only .feature files can be saved from the agent panel.",
+            });
+            return;
+        }
+        const buf = Buffer.from(content, "utf8");
+        if (buf.length > MAX_AGENT_FILE_BYTES) {
+            socket.emit("note_error", {
+                message: `File is too large (max ${MAX_AGENT_FILE_BYTES} bytes).`,
+            });
+            return;
+        }
+        try {
+            fs.mkdirSync(path.dirname(abs), { recursive: true });
+            fs.writeFileSync(abs, content, "utf-8");
+            console.log(`Agent file saved: ${abs}`);
+            io.emit("agent_files_updated", buildAgentPayload());
+        } catch (e) {
+            console.warn("save_agent_file:", e);
+            socket.emit("note_error", {
+                message: "Could not write the agent file to disk.",
+            });
+        }
+    });
+
     socket.on("new_note", ({ author, type, content, ruleIds, isAi }) => {
         let resolvedExampleRuleIds: string[] | undefined;
         if (type === "Example") {
@@ -660,7 +768,8 @@ io.on("connection", (socket) => {
         const id = nextId(type);
         const timestamp = new Date().toISOString();
         const userDir = safeUsername(author);
-        const relPath = `${userDir}/${id}.md`;
+        const ext = noteFileExtension(type);
+        const relPath = `${userDir}/${id}.${ext}`;
 
         const userAbsDir = path.join(CONTEXT_DIR, userDir);
         if (!fs.existsSync(userAbsDir))
@@ -675,11 +784,7 @@ io.on("connection", (socket) => {
         }
         noteIndex.set(id, note);
 
-        if (type === "Rule") {
-            fs.writeFileSync(absPath(relPath), buildRuleMarkdown(note), "utf-8");
-        } else {
-            fs.writeFileSync(absPath(relPath), buildMarkdown(note), "utf-8");
-        }
+        writeNoteToDisk(note);
         console.log(`Saved: context_files/${relPath}`);
 
         if (type === "Example") {
@@ -762,19 +867,7 @@ io.on("connection", (socket) => {
         }
         noteIndex.set(id, updated);
 
-        if (updated.type === "Rule") {
-            fs.writeFileSync(
-                absPath(updated.relPath),
-                buildRuleMarkdown(updated),
-                "utf-8",
-            );
-        } else {
-            fs.writeFileSync(
-                absPath(updated.relPath),
-                buildMarkdown(updated),
-                "utf-8",
-            );
-        }
+        writeNoteToDisk(updated);
         console.log(`Updated: context_files/${updated.relPath}`);
 
         if (updated.type === "Example") {

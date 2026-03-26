@@ -62,6 +62,10 @@ export default function Board({
         () => visible.filter((n) => n.type === "Question").sort(sortById),
         [visible],
     );
+    const features = useMemo(
+        () => visible.filter((n) => n.type === "Feature").sort(sortById),
+        [visible],
+    );
 
     const allRules = useMemo(
         () =>
@@ -72,6 +76,7 @@ export default function Board({
     const useGroupedLayout =
         activeFilter === "All" &&
         (stories.length > 0 ||
+            features.length > 0 ||
             rules.length > 0 ||
             examples.length > 0 ||
             questions.length > 0);
@@ -127,6 +132,17 @@ export default function Board({
                             <h2 className="board-section-title">Story</h2>
                             <div className="board-section-cards">
                                 {stories.map(renderCard)}
+                            </div>
+                        </section>
+                    )}
+                    {features.length > 0 && (
+                        <section
+                            className="board-section board-section--feature"
+                            aria-label="Gherkin features"
+                        >
+                            <h2 className="board-section-title">Features (Gherkin)</h2>
+                            <div className="board-section-cards">
+                                {features.map(renderCard)}
                             </div>
                         </section>
                     )}

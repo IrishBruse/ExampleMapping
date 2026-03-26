@@ -1,6 +1,6 @@
 // src/types.ts — Shared interfaces for server and client
 
-export type NoteType = "Story" | "Rule" | "Example" | "Question";
+export type NoteType = "Story" | "Rule" | "Example" | "Question" | "Feature";
 
 export interface Note {
   /** Global per-type counter, e.g. "Story_4" — unique across all users */
@@ -108,4 +108,9 @@ export interface ClientToServerEvents {
   delete_note: (payload: { id: string }) => void;
   /** Client sets or updates their display name */
   set_username: (name: string) => void;
+  /**
+   * Save a file under the agent watch directory (e.g. draft *.feature).
+   * Server validates path and size; broadcasts agent_files_updated on success.
+   */
+  save_agent_file: (payload: { relPath: string; content: string }) => void;
 }

@@ -147,6 +147,8 @@ export default function NoteCard({
     if (e.key === "Escape") handleCancel();
   };
 
+  const contentMaxLength = note.type === "Feature" ? 4000 : 600;
+
   const handleDelete = () => {
     if (
       !window.confirm(
@@ -190,25 +192,29 @@ export default function NoteCard({
             AI
           </span>
         )}
-        <div className="card-content card-content--markdown">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkBreaks]}
-            components={{
-              a: (props) => (
-                <a
-                  {...props}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                />
-              ),
-              img: ({ node: _n, ...props }) => (
-                <img {...props} alt={props.alt ?? ""} className="card-md-img" />
-              ),
-            }}
-          >
-            {note.content}
-          </ReactMarkdown>
-        </div>
+        {note.type === "Feature" ? (
+          <pre className="card-content card-content--gherkin">{note.content}</pre>
+        ) : (
+          <div className="card-content card-content--markdown">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkBreaks]}
+              components={{
+                a: (props) => (
+                  <a
+                    {...props}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  />
+                ),
+                img: ({ node: _n, ...props }) => (
+                  <img {...props} alt={props.alt ?? ""} className="card-md-img" />
+                ),
+              }}
+            >
+              {note.content}
+            </ReactMarkdown>
+          </div>
+        )}
       </div>
 
       {note.type === "Example" && linkedRules.length > 0 && !isEditing && (
@@ -265,7 +271,7 @@ export default function NoteCard({
           <textarea
             ref={textareaRef}
             className="card-textarea"
-            maxLength={600}
+            maxLength={contentMaxLength}
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
             onKeyDown={handleKeyDown}

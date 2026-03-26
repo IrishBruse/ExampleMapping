@@ -1,14 +1,24 @@
 import { useState, useEffect } from "react";
-import type { Note, NoteType } from "../types";
+import type { Note, NoteType, AgentFilesPayload } from "../types";
+import AgentFeaturePanel from "./AgentFeaturePanel";
 
 const NOTE_TYPES: { type: NoteType; label: string }[] = [
   { type: "Story", label: "Story" },
   { type: "Rule", label: "Rule" },
   { type: "Example", label: "Example" },
   { type: "Question", label: "Question" },
+  { type: "Feature", label: "Feature" },
 ];
 
-const FILTERS = ["All", "Story", "Rule", "Example", "Question", "Agent"];
+const FILTERS = ["All", "Story", "Rule", "Example", "Question", "Feature", "Agent"];
+
+const CONTENT_MAX: Record<NoteType, number> = {
+  Story: 600,
+  Rule: 600,
+  Example: 600,
+  Question: 600,
+  Feature: 4000,
+};
 
 interface SidebarProps {
   currentAuthor: string;
@@ -27,6 +37,8 @@ interface SidebarProps {
   /** When set once, open Example composer with this rule linked (then cleared via callback) */
   pendingExampleRuleId: string | null;
   onPendingExampleConsumed: () => void;
+  agentFiles: AgentFilesPayload;
+  onSaveAgentFile: (relPath: string, content: string) => void;
 }
 
 export default function Sidebar({
@@ -39,6 +51,8 @@ export default function Sidebar({
   rules,
   pendingExampleRuleId,
   onPendingExampleConsumed,
+  agentFiles,
+  onSaveAgentFile,
 }: SidebarProps) {
   const [selectedType, setSelectedType] = useState<NoteType>("Story");
   const [content, setContent] = useState("");
@@ -58,6 +72,8 @@ export default function Sidebar({
       document.querySelector("aside")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
   }, [pendingExampleRuleId, onPendingExampleConsumed]);
+
+  const contentMax = CONTENT_MAX[selectedType];
 
   const canPost =
     currentAuthor.trim().length > 0 &&
@@ -166,18 +182,32 @@ export default function Sidebar({
           id="content-input"
           className="compose-textarea"
           data-note-type={selectedType}
-          placeholder="Type your note… (Ctrl+Enter to post)"
-          maxLength={600}
+          placeholder={
+            selectedType === "Feature"
+              ? "Feature: Title\n  Scenario: …\n    Given …\n    When …\n    Then …"
+              : "Type your note… (Ctrl+Enter to post)"
+          }
+          maxLength={contentMax}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={handleKeyDown}
         />
-        <div id="char-count">{content.length} / 600</div>
+        <div id="char-count">
+          {content.length} / {contentMax}
+        </div>
       </div>
 
       <button id="post-btn" disabled={!canPost} onClick={handlePost}>
         POST NOTE
       </button>
+
+      <hr className="divider" />
+
+      <AgentFeaturePanel
+        payload={agentFiles}
+        hasDisplayName={currentAuthor.trim().length > 0}
+        onSave={onSaveAgentFile}
+      />
 
       <hr className="divider" />
 
