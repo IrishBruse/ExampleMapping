@@ -436,14 +436,41 @@ main {
   align-items: flex-start;
   min-height: 48px;
 }
+.board-rule-row__empty-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 6px 10px;
+  max-width: 22em;
+}
 .board-rule-row__empty {
   font-size: 11px;
   color: var(--muted);
   letter-spacing: 0.04em;
   line-height: 1.5;
-  padding: 10px 6px;
+  padding: 4px 0 0;
+  margin: 0;
   font-style: italic;
-  max-width: 22em;
+}
+.board-rule-row__add-example-btn {
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg);
+  cursor: pointer;
+}
+.board-rule-row__add-example-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.board-rule-row__add-example-btn:focus-visible {
+  outline: 2px solid var(--accent, #6b9fff);
+  outline-offset: 2px;
 }
 .board-column-empty {
   font-size: 11px;

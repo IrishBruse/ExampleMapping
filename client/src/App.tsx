@@ -19,6 +19,10 @@ export default function App() {
     id: string;
     resolve: (ok: boolean) => void;
   } | null>(null);
+  /** When set, Sidebar switches to Example composer with this rule pre-linked */
+  const [pendingExampleRuleId, setPendingExampleRuleId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     const onConnect = () => {
@@ -187,6 +191,14 @@ export default function App() {
     socket.emit("delete_note", { id });
   }, []);
 
+  const handleStartAddExampleForRule = useCallback((ruleId: string) => {
+    setPendingExampleRuleId(ruleId);
+  }, []);
+
+  const handlePendingExampleConsumed = useCallback(() => {
+    setPendingExampleRuleId(null);
+  }, []);
+
   return (
     <>
       <Header connected={connected} noteCount={notes.size} />
@@ -198,6 +210,8 @@ export default function App() {
         onPost={handlePost}
         connectedUsers={connectedUsers}
         rules={ruleNotes}
+        pendingExampleRuleId={pendingExampleRuleId}
+        onPendingExampleConsumed={handlePendingExampleConsumed}
       />
       <Board
         notes={notes}
@@ -208,6 +222,7 @@ export default function App() {
         editLocks={editLocks}
         onRequestBeginEdit={requestBeginEdit}
         onEndEdit={handleEndEdit}
+        onStartAddExampleForRule={handleStartAddExampleForRule}
       />
     </>
   );

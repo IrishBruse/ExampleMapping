@@ -11,6 +11,7 @@ interface BoardProps {
   editLocks: Map<string, string>;
   onRequestBeginEdit: (id: string) => Promise<boolean>;
   onEndEdit: (id: string) => void;
+  onStartAddExampleForRule: (ruleId: string) => void;
 }
 
 function sortById(a: Note, b: Note): number {
@@ -33,6 +34,7 @@ export default function Board({
   editLocks,
   onRequestBeginEdit,
   onEndEdit,
+  onStartAddExampleForRule,
 }: BoardProps) {
   const boardRef = useRef<HTMLElement>(null);
   const prevCountRef = useRef(0);
@@ -144,9 +146,18 @@ export default function Board({
                         <div className="board-rule-row__rule">{renderCard(rule)}</div>
                         <div className="board-rule-row__examples">
                           {rowExamples.length === 0 ? (
-                            <p className="board-rule-row__empty">
-                              No example linked to this rule yet.
-                            </p>
+                            <div className="board-rule-row__empty-wrap">
+                              <p className="board-rule-row__empty">
+                                No example linked to this rule yet.
+                              </p>
+                              <button
+                                type="button"
+                                className="board-rule-row__add-example-btn"
+                                onClick={() => onStartAddExampleForRule(rule.id)}
+                              >
+                                Add example
+                              </button>
+                            </div>
                           ) : (
                             rowExamples.map((ex) => (
                               <NoteCard

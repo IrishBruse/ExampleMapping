@@ -191,15 +191,6 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     cors: { origin: "*" },
 });
 
-let agentWatchDebounce: NodeJS.Timeout | null = null;
-function scheduleAgentRescan(): void {
-    if (agentWatchDebounce) clearTimeout(agentWatchDebounce);
-    agentWatchDebounce = setTimeout(() => {
-        agentWatchDebounce = null;
-        io.emit("agent_files_updated", buildAgentPayload());
-    }, 300);
-}
-
 if (!fs.existsSync(AGENT_DIR)) {
     try {
         fs.mkdirSync(AGENT_DIR, { recursive: true });
@@ -518,10 +509,13 @@ function deleteNoteById(id: string): string[] | null {
         for (const eid of toRemove) {
             const ex = noteIndex.get(eid);
             if (!ex) continue;
-            try {
-                fs.unlinkSync(absPath(ex.relPath));
-            } catch {
-                return null;
+            const exAbs = absPath(ex.relPath);
+            if (fs.existsSync(exAbs)) {
+                try {
+                    fs.unlinkSync(exAbs);
+                } catch {
+                    return null;
+                }
             }
             noteIndex.delete(eid);
             removedIds.push(eid);
@@ -532,10 +526,13 @@ function deleteNoteById(id: string): string[] | null {
         }
     }
 
-    try {
-        fs.unlinkSync(absPath(note.relPath));
-    } catch {
-        return null;
+    const mainAbs = absPath(note.relPath);
+    if (fs.existsSync(mainAbs)) {
+        try {
+            fs.unlinkSync(mainAbs);
+        } catch {
+            return null;
+        }
     }
     noteIndex.delete(id);
     removedIds.push(id);
@@ -544,6 +541,90 @@ function deleteNoteById(id: string): string[] | null {
         rebuildAllRuleFiles();
     }
     return removedIds;
+}
+
+function notesEqual(a: Note, b: Note): boolean {
+    return (
+        a.id === b.id &&
+        a.content === b.content &&
+        a.timestamp === b.timestamp &&
+        a.author === b.author &&
+        a.type === b.type &&
+        a.relPath === b.relPath &&
+        (a.isAi ?? false) === (b.isAi ?? false) &&
+        JSON.stringify(a.ruleIds ?? []) === JSON.stringify(b.ruleIds ?? [])
+    );
+}
+
+function updateCounterFromNoteId(id: string): void {
+    const m = id.match(/^([A-Za-z]+)_(\d+)$/);
+    if (!m) return;
+    const type = m[1] as NoteType;
+    const n = parseInt(m[2], 10);
+    if (!NOTE_TYPES.includes(type) || Number.isNaN(n)) return;
+    if (n > counters[type]) counters[type] = n;
+}
+
+/**
+ * Reconcile noteIndex with everything on disk (all user folders).
+ * Used when the agent or another process adds, edits, or removes `.md` notes outside Socket.io handlers.
+ */
+function fullResyncNotesFromDisk(): void {
+    const diskList = loadAllNotes();
+    const onDisk = new Map<string, Note>();
+    for (const n of diskList) {
+        onDisk.set(n.id, n);
+    }
+
+    const toRemove = [...noteIndex.keys()].filter((id) => !onDisk.has(id));
+    for (const id of toRemove) {
+        const removed = deleteNoteById(id);
+        if (removed) {
+            for (const rid of removed) {
+                io.emit("note_removed", rid);
+            }
+        }
+    }
+
+    let needsRuleRebuild = false;
+    for (const [id, parsed] of onDisk) {
+        updateCounterFromNoteId(id);
+        const before = noteIndex.get(id);
+        noteIndex.set(id, parsed);
+        if (!before) {
+            if (parsed.type === "Rule" || parsed.type === "Example") {
+                needsRuleRebuild = true;
+            }
+            io.emit("note_added", parsed);
+        } else if (!notesEqual(before, parsed)) {
+            if (
+                parsed.type === "Rule" ||
+                parsed.type === "Example" ||
+                before.type === "Rule" ||
+                before.type === "Example"
+            ) {
+                needsRuleRebuild = true;
+            }
+            io.emit("note_updated", parsed);
+        }
+    }
+    if (needsRuleRebuild) {
+        rebuildAllRuleFiles();
+    }
+}
+
+let contextDirWatchDebounce: NodeJS.Timeout | null = null;
+function scheduleContextDirEffects(): void {
+    if (contextDirWatchDebounce) clearTimeout(contextDirWatchDebounce);
+    contextDirWatchDebounce = setTimeout(() => {
+        contextDirWatchDebounce = null;
+        try {
+            io.emit("agent_files_updated", buildAgentPayload());
+            fullResyncNotesFromDisk();
+        } catch (e) {
+            console.warn("context dir watch handler:", e);
+        }
+    }, 350);
 }
 
 // ─── Socket Events ────────────────────────────────────────────────────────────
@@ -744,26 +825,11 @@ io.on("connection", (socket) => {
     });
 });
 
-// ─── File Watcher (detects manual deletes) ────────────────────────────────────
+// ─── File watcher (agent + external edits: add / change / delete) ────────────
+// fs.watch may pass a null filename on some OSes; debounced full resync handles all cases.
 
-fs.watch(CONTEXT_DIR, { recursive: true }, (eventType, filename) => {
-    if (!filename || !filename.endsWith(".md")) return;
-    const relPath = filename.replace(/\\/g, "/");
-    if (
-        eventType === "rename" &&
-        !fs.existsSync(path.join(CONTEXT_DIR, relPath))
-    ) {
-        for (const [id, note] of noteIndex.entries()) {
-            if (note.relPath === relPath) {
-                const wasExample = note.type === "Example";
-                noteIndex.delete(id);
-                console.log(`Removed: context_files/${relPath}`);
-                io.emit("note_removed", id);
-                if (wasExample) rebuildAllRuleFiles();
-                break;
-            }
-        }
-    }
+fs.watch(CONTEXT_DIR, { recursive: true }, () => {
+    scheduleContextDirEffects();
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────

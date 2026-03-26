@@ -24,6 +24,9 @@ interface SidebarProps {
   connectedUsers: string[];
   /** Rules available when posting an Example */
   rules: Note[];
+  /** When set once, open Example composer with this rule linked (then cleared via callback) */
+  pendingExampleRuleId: string | null;
+  onPendingExampleConsumed: () => void;
 }
 
 export default function Sidebar({
@@ -34,6 +37,8 @@ export default function Sidebar({
   onPost,
   connectedUsers,
   rules,
+  pendingExampleRuleId,
+  onPendingExampleConsumed,
 }: SidebarProps) {
   const [selectedType, setSelectedType] = useState<NoteType>("Story");
   const [content, setContent] = useState("");
@@ -42,6 +47,17 @@ export default function Sidebar({
   useEffect(() => {
     if (selectedType !== "Example") setExampleRuleIds(new Set());
   }, [selectedType]);
+
+  useEffect(() => {
+    if (pendingExampleRuleId == null) return;
+    setSelectedType("Example");
+    setExampleRuleIds(new Set([pendingExampleRuleId]));
+    onPendingExampleConsumed();
+    requestAnimationFrame(() => {
+      document.getElementById("content-input")?.focus({ preventScroll: true });
+      document.querySelector("aside")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  }, [pendingExampleRuleId, onPendingExampleConsumed]);
 
   const canPost =
     currentAuthor.trim().length > 0 &&
