@@ -23,8 +23,10 @@ interface NoteCardProps {
   onEdit: (id: string, content: string, ruleIds?: string[]) => void;
   onDelete: (id: string) => void;
   allRules: Note[];
-  /** Display name of user editing this note, or null if nobody is */
-  editLockedBy: string | null;
+  /** Edit lock holder (name + color), or null if nobody is editing */
+  editLock: { lockedBy: string; color: string } | null;
+  /** This client’s chosen color (outline while you edit) */
+  userColor: string;
   onRequestBeginEdit: (id: string) => Promise<boolean>;
   onEndEdit: (id: string) => void;
 }
@@ -35,7 +37,8 @@ export default function NoteCard({
   onEdit,
   onDelete,
   allRules,
-  editLockedBy,
+  editLock,
+  userColor,
   onRequestBeginEdit,
   onEndEdit,
 }: NoteCardProps) {
@@ -56,9 +59,15 @@ export default function NoteCard({
 
   const hasDisplayName = currentAuthor.trim().length > 0;
   const lockedByOther =
-    editLockedBy !== null &&
-    editLockedBy.trim().toLowerCase() !==
+    editLock !== null &&
+    editLock.lockedBy.trim().toLowerCase() !==
       currentAuthor.trim().toLowerCase();
+
+  const editorOutlineColor = isEditing
+    ? userColor
+    : lockedByOther
+      ? editLock.color
+      : undefined;
 
   const [, num] = note.id.split("_");
 
@@ -198,7 +207,14 @@ export default function NoteCard({
 
   return (
     <div
-      className={`card${isEditing ? " editing" : ""}`}
+      className={`card${isEditing ? " editing" : ""}${editorOutlineColor ? " card--editor-ring" : ""}`}
+      style={
+        editorOutlineColor
+          ? ({
+              ["--editor-ring-color" as string]: editorOutlineColor,
+            } as React.CSSProperties)
+          : undefined
+      }
       data-id={note.id}
       data-type={note.type}
       data-ai={note.isAi ? "true" : undefined}
@@ -314,7 +330,7 @@ export default function NoteCard({
                   !hasDisplayName
                     ? "Set your display name in the toolbar to edit notes."
                     : lockedByOther
-                      ? `${editLockedBy} is editing`
+                      ? `${editLock.lockedBy} is editing`
                       : "Edit this note"
                 }
               >

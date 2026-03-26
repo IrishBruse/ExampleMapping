@@ -30,6 +30,8 @@ export type TypeCounters = Record<NoteType, number>;
 export interface ConnectedUserEntry {
     socketId: string;
     displayName: string;
+    /** Hex RGB, e.g. "#6b9fd4" — chosen in the client */
+    color: string;
 }
 
 // Socket.io event contracts — keeps server and client in sync
@@ -47,12 +49,15 @@ export interface ServerToClientEvents {
     /** Validation failed for new_note or edit_note */
     note_error: (payload: { message: string }) => void;
 
-    /** Current note edit locks: note id → display name of the editor (for reconnect sync) */
-    init_edit_locks: (locks: Record<string, string>) => void;
+    /** Current note edit locks: note id → editor display name + color (for reconnect sync) */
+    init_edit_locks: (
+        locks: Record<string, { lockedBy: string; color: string }>,
+    ) => void;
     /** A note's edit lock was taken or released (lockedBy null = unlocked) */
     note_edit_lock_changed: (payload: {
         noteId: string;
         lockedBy: string | null;
+        editorColor: string | null;
     }) => void;
     /** Result of attempting to start an edit session (only sent to the requesting client) */
     begin_edit_result: (payload: {
@@ -114,6 +119,8 @@ export interface ClientToServerEvents {
     delete_note: (payload: { id: string }) => void;
     /** Client sets or updates their display name */
     set_username: (name: string) => void;
+    /** Client sets accent color (hex), shown in Connected list and on stickies they edit */
+    set_user_color: (color: string) => void;
     /**
      * Save a file under the agent watch directory (e.g. draft *.feature).
      * Server validates path and size; broadcasts agent_files_updated on success.

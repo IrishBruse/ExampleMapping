@@ -251,7 +251,13 @@ export default function Sidebar({
                                     key={u.socketId}
                                     className={`user-list-item${isYou ? " user-list-item--you" : ""}${u.displayName ? "" : " user-list-item--unnamed"}`}
                                 >
-                                    <span className="user-dot" />
+                                    <span
+                                        className="user-dot"
+                                        style={{
+                                            background: u.color,
+                                            boxShadow: `0 0 5px ${u.color}`,
+                                        }}
+                                    />
                                     <span className="user-list-label">
                                         {label}
                                     </span>

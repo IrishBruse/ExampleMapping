@@ -3,6 +3,8 @@ interface HeaderProps {
   noteCount: number;
   currentAuthor: string;
   onAuthorChange: (author: string) => void;
+  userColor: string;
+  onUserColorChange: (color: string) => void;
 }
 
 export default function Header({
@@ -10,6 +12,8 @@ export default function Header({
   noteCount,
   currentAuthor,
   onAuthorChange,
+  userColor,
+  onUserColorChange,
 }: HeaderProps) {
   return (
     <header>
@@ -28,6 +32,20 @@ export default function Header({
           value={currentAuthor}
           onChange={(e) => onAuthorChange(e.target.value)}
           autoComplete="nickname"
+        />
+      </div>
+      <div className="header-author header-user-color">
+        <label htmlFor="user-color-input" className="header-author-label">
+          Color
+        </label>
+        <input
+          type="color"
+          id="user-color-input"
+          className="header-user-color-input"
+          value={userColor}
+          onChange={(e) => onUserColorChange(e.target.value)}
+          title="Your color on stickies and in Connected"
+          aria-label="Your accent color"
         />
       </div>
       <span id="note-count">

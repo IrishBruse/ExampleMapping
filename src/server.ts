@@ -613,22 +613,37 @@ console.log(
 );
 
 // ─── Connected users ──────────────────────────────────────────────────────────
-// Maps socket.id → display name (empty string until set_username is received)
+// Maps socket.id → profile (name empty until set_username; color from set_user_color)
 
-const connectedUsers = new Map<string, string>();
+const DEFAULT_USER_COLOR = "#6b9fd4";
+
+interface SocketProfile {
+    displayName: string;
+    color: string;
+}
+
+function normalizeHexColor(raw: string): string {
+    const s = typeof raw === "string" ? raw.trim() : "";
+    if (/^#[0-9A-Fa-f]{6}$/.test(s)) return s.toLowerCase();
+    return DEFAULT_USER_COLOR;
+}
+
+const connectedUsers = new Map<string, SocketProfile>();
 
 function broadcastUsers(): void {
     const users: ConnectedUserEntry[] = [...connectedUsers.entries()].map(
-        ([socketId, name]) => ({
+        ([socketId, p]) => ({
             socketId,
-            displayName: name.trim(),
+            displayName: p.displayName.trim(),
+            color: p.color,
         }),
     );
     io.emit("users_changed", users);
 }
 
 function isNoteOwner(socketId: string, note: Note): boolean {
-    const name = connectedUsers.get(socketId)?.trim().toLowerCase() ?? "";
+    const name =
+        connectedUsers.get(socketId)?.displayName?.trim().toLowerCase() ?? "";
     return name.length > 0 && name === note.author.trim().toLowerCase();
 }
 
@@ -636,27 +651,39 @@ function isNoteOwner(socketId: string, note: Note): boolean {
 const noteEditLocks = new Map<string, string>();
 
 function getSocketDisplayName(socketId: string): string {
-    return connectedUsers.get(socketId)?.trim() ?? "";
+    return connectedUsers.get(socketId)?.displayName?.trim() ?? "";
 }
 
-function broadcastLock(noteId: string, lockedBy: string | null): void {
-    io.emit("note_edit_lock_changed", { noteId, lockedBy });
+function getSocketColor(socketId: string): string {
+    return connectedUsers.get(socketId)?.color ?? DEFAULT_USER_COLOR;
+}
+
+function broadcastLock(
+    noteId: string,
+    lockedBy: string | null,
+    editorColor: string | null,
+): void {
+    io.emit("note_edit_lock_changed", { noteId, lockedBy, editorColor });
 }
 
 function releaseLocksHeldBySocket(socketId: string): void {
     for (const [noteId, holder] of noteEditLocks.entries()) {
         if (holder === socketId) {
             noteEditLocks.delete(noteId);
-            broadcastLock(noteId, null);
+            broadcastLock(noteId, null, null);
         }
     }
 }
 
-function buildEditLocksPayload(): Record<string, string> {
-    const out: Record<string, string> = {};
+function buildEditLocksPayload(): Record<
+    string,
+    { lockedBy: string; color: string }
+> {
+    const out: Record<string, { lockedBy: string; color: string }> = {};
     for (const [noteId, sid] of noteEditLocks.entries()) {
         const name = getSocketDisplayName(sid);
-        if (name) out[noteId] = name;
+        if (name)
+            out[noteId] = { lockedBy: name, color: getSocketColor(sid) };
     }
     return out;
 }
@@ -810,7 +837,10 @@ function scheduleContextDirEffects(): void {
 
 io.on("connection", (socket) => {
     console.log(`[${new Date().toISOString()}] Client connected: ${socket.id}`);
-    connectedUsers.set(socket.id, "");
+    connectedUsers.set(socket.id, {
+        displayName: "",
+        color: DEFAULT_USER_COLOR,
+    });
     broadcastUsers();
 
     const snapshot = [...noteIndex.values()];
@@ -822,8 +852,31 @@ io.on("connection", (socket) => {
     socket.emit("init_agent_files", buildAgentPayload());
 
     socket.on("set_username", (name: string) => {
-        connectedUsers.set(socket.id, name.trim().slice(0, 32));
+        const p = connectedUsers.get(socket.id) ?? {
+            displayName: "",
+            color: DEFAULT_USER_COLOR,
+        };
+        p.displayName =
+            typeof name === "string" ? name.trim().slice(0, 32) : "";
+        connectedUsers.set(socket.id, p);
         broadcastUsers();
+    });
+
+    socket.on("set_user_color", (color: string) => {
+        const p = connectedUsers.get(socket.id) ?? {
+            displayName: "",
+            color: DEFAULT_USER_COLOR,
+        };
+        p.color = normalizeHexColor(typeof color === "string" ? color : "");
+        connectedUsers.set(socket.id, p);
+        broadcastUsers();
+        const name = p.displayName.trim();
+        if (name) {
+            for (const [noteId, holder] of noteEditLocks.entries()) {
+                if (holder === socket.id)
+                    broadcastLock(noteId, name, p.color);
+            }
+        }
     });
 
     socket.on("save_agent_file", ({ relPath, content }) => {
@@ -943,14 +996,14 @@ io.on("connection", (socket) => {
             return;
         }
         noteEditLocks.set(id, socket.id);
-        broadcastLock(id, name);
+        broadcastLock(id, name, getSocketColor(socket.id));
         socket.emit("begin_edit_result", { noteId: id, ok: true });
     });
 
     socket.on("end_edit_note", ({ id }) => {
         if (noteEditLocks.get(id) !== socket.id) return;
         noteEditLocks.delete(id);
-        broadcastLock(id, null);
+        broadcastLock(id, null, null);
     });
 
     socket.on("edit_note", ({ id, content, ruleIds }) => {
@@ -995,7 +1048,7 @@ io.on("connection", (socket) => {
 
         if (noteEditLocks.get(id) === socket.id) {
             noteEditLocks.delete(id);
-            broadcastLock(id, null);
+            broadcastLock(id, null, null);
         }
 
         io.emit("note_updated", updated);
@@ -1030,7 +1083,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("disconnect", () => {
-        const displayName = connectedUsers.get(socket.id)?.trim();
+        const displayName = connectedUsers.get(socket.id)?.displayName?.trim();
         const who = displayName ? `"${displayName}"` : "(name not set)";
         console.log(
             `[${new Date().toISOString()}] Client disconnected: ${socket.id} ${who}`,

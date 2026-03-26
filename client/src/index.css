@@ -162,6 +162,23 @@ header input.header-author-input {
     padding: 6px 10px;
     font-size: 12px;
 }
+
+.header-user-color-input {
+    width: 36px;
+    height: 28px;
+    padding: 2px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    cursor: pointer;
+}
+.header-user-color-input::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+.header-user-color-input::-webkit-color-swatch {
+    border: none;
+    border-radius: 1px;
+}
 textarea {
     height: 130px;
     line-height: 1.6;
@@ -623,6 +640,25 @@ main#board::-webkit-scrollbar-thumb:hover {
 .card:hover {
     transform: translate(-1px, -2px);
     box-shadow:
+        4px 4px 0 rgba(0, 0, 0, 0.4),
+        0 1px 0 rgba(0, 0, 0, 0.1) inset;
+}
+
+/* Editor presence ring — dark inner + user color + subtle outer edge */
+.card.card--editor-ring {
+    box-shadow:
+        0 0 0 2px rgba(0, 0, 0, 0.78),
+        0 0 0 6px var(--editor-ring-color),
+        0 0 0 8px rgba(0, 0, 0, 0.35),
+        3px 3px 0 rgba(0, 0, 0, 0.42),
+        0 1px 0 rgba(0, 0, 0, 0.12) inset;
+}
+.card.card--editor-ring:hover {
+    transform: translate(-1px, -2px);
+    box-shadow:
+        0 0 0 2px rgba(0, 0, 0, 0.78),
+        0 0 0 6px var(--editor-ring-color),
+        0 0 0 8px rgba(0, 0, 0, 0.35),
         4px 4px 0 rgba(0, 0, 0, 0.4),
         0 1px 0 rgba(0, 0, 0, 0.1) inset;
 }
@@ -1172,12 +1208,11 @@ main#board::-webkit-scrollbar-thumb:hover {
 }
 
 .user-dot {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    background: #4caf50;
     flex-shrink: 0;
-    box-shadow: 0 0 4px #4caf50;
+    border: 1px solid rgba(0, 0, 0, 0.35);
 }
 
 .user-you-badge {

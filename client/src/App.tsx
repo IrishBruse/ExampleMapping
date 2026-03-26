@@ -12,9 +12,14 @@ export default function App() {
   const [currentAuthor, setCurrentAuthor] = useState(
     () => localStorage.getItem("authorName") ?? ""
   );
+  const [userColor, setUserColor] = useState(
+    () => localStorage.getItem("authorColor") ?? "#6b9fd4"
+  );
   const [connectedUsers, setConnectedUsers] = useState<ConnectedUserEntry[]>([]);
-  /** note id → display name of user currently editing */
-  const [editLocks, setEditLocks] = useState<Map<string, string>>(() => new Map());
+  /** note id → who holds the edit lock (name + color for outline) */
+  const [editLocks, setEditLocks] = useState<
+    Map<string, { lockedBy: string; color: string }>
+  >(() => new Map());
   const pendingBeginEdit = useRef<{
     id: string;
     resolve: (ok: boolean) => void;
@@ -36,6 +41,8 @@ export default function App() {
       setConnected(true);
       const saved = localStorage.getItem("authorName");
       if (saved) socket.emit("set_username", saved);
+      const savedColor = localStorage.getItem("authorColor");
+      socket.emit("set_user_color", savedColor ?? "#6b9fd4");
     };
     const onDisconnect = (reason: string) => {
       console.warn("[mapping] socket disconnected:", reason);
@@ -86,18 +93,25 @@ export default function App() {
       window.alert(message);
     };
 
-    const onInitEditLocks = (locks: Record<string, string>) => {
+    const onInitEditLocks = (
+      locks: Record<string, { lockedBy: string; color: string }>,
+    ) => {
       setEditLocks(new Map(Object.entries(locks)));
     };
 
     const onNoteEditLockChanged = (payload: {
       noteId: string;
       lockedBy: string | null;
+      editorColor: string | null;
     }) => {
       setEditLocks((prev) => {
         const next = new Map(prev);
         if (payload.lockedBy === null) next.delete(payload.noteId);
-        else next.set(payload.noteId, payload.lockedBy);
+        else
+          next.set(payload.noteId, {
+            lockedBy: payload.lockedBy,
+            color: payload.editorColor ?? "#6b9fd4",
+          });
         return next;
       });
     };
@@ -159,6 +173,12 @@ export default function App() {
     setCurrentAuthor(name);
     localStorage.setItem("authorName", name);
     socket.emit("set_username", name);
+  }, []);
+
+  const handleUserColorChange = useCallback((color: string) => {
+    setUserColor(color);
+    localStorage.setItem("authorColor", color);
+    socket.emit("set_user_color", color);
   }, []);
 
   const ruleNotes = useMemo(
@@ -247,6 +267,8 @@ export default function App() {
         noteCount={notes.size}
         currentAuthor={currentAuthor}
         onAuthorChange={handleAuthorChange}
+        userColor={userColor}
+        onUserColorChange={handleUserColorChange}
       />
       <Sidebar
         currentAuthor={currentAuthor}
@@ -264,6 +286,7 @@ export default function App() {
         notes={notes}
         activeFilter={activeFilter}
         currentAuthor={currentAuthor}
+        userColor={userColor}
         onEdit={handleEdit}
         onDelete={handleDelete}
         editLocks={editLocks}

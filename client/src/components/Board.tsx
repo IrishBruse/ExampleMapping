@@ -6,9 +6,10 @@ interface BoardProps {
     notes: Map<string, Note>;
     activeFilter: string;
     currentAuthor: string;
+    userColor: string;
     onEdit: (id: string, content: string, ruleIds?: string[]) => void;
     onDelete: (id: string) => void;
-    editLocks: Map<string, string>;
+    editLocks: Map<string, { lockedBy: string; color: string }>;
     onRequestBeginEdit: (id: string) => Promise<boolean>;
     onEndEdit: (id: string) => void;
     onStartAddExampleForRule: (ruleId: string) => void;
@@ -29,6 +30,7 @@ export default function Board({
     notes,
     activeFilter,
     currentAuthor,
+    userColor,
     onEdit,
     onDelete,
     editLocks,
@@ -105,7 +107,8 @@ export default function Board({
             onEdit={onEdit}
             onDelete={onDelete}
             allRules={allRules}
-            editLockedBy={editLocks.get(note.id) ?? null}
+            editLock={editLocks.get(note.id) ?? null}
+            userColor={userColor}
             onRequestBeginEdit={onRequestBeginEdit}
             onEndEdit={onEndEdit}
         />
@@ -191,10 +194,13 @@ export default function Board({
                                                             onEdit={onEdit}
                                                             onDelete={onDelete}
                                                             allRules={allRules}
-                                                            editLockedBy={
+                                                            editLock={
                                                                 editLocks.get(
                                                                     ex.id,
                                                                 ) ?? null
+                                                            }
+                                                            userColor={
+                                                                userColor
                                                             }
                                                             onRequestBeginEdit={
                                                                 onRequestBeginEdit
