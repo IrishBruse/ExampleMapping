@@ -466,6 +466,11 @@ function isNoteOwner(socketId: string, note: Note): boolean {
     );
 }
 
+/** Notes stored under the agent user (Author: agent) — any client may delete; only agent can edit via owner check */
+function isAgentAuthorNote(note: Note): boolean {
+    return note.author.trim().toLowerCase() === "agent";
+}
+
 /** Deletes a note and dependent example files if a rule is removed. Returns ids removed (examples first, then target), or null on failure. */
 function deleteNoteById(id: string): string[] | null {
     const note = noteIndex.get(id);
@@ -632,7 +637,9 @@ io.on("connection", (socket) => {
             return;
         }
         const canDelete =
-            isNoteOwner(socket.id, note) || note.isAi === true;
+            isNoteOwner(socket.id, note) ||
+            note.isAi === true ||
+            isAgentAuthorNote(note);
         if (!canDelete) {
             socket.emit("note_error", {
                 message: "You can only delete your own notes.",

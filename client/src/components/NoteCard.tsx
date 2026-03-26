@@ -25,7 +25,9 @@ export default function NoteCard({
 
   const isOwner =
     note.author.trim().toLowerCase() === currentAuthor.trim().toLowerCase();
-  const canDelete = isOwner || note.isAi === true;
+  const isAgentAuthor =
+    note.author.trim().toLowerCase() === "agent";
+  const canDelete = isOwner || note.isAi === true || isAgentAuthor;
 
   const [, num] = note.id.split("_");
 
