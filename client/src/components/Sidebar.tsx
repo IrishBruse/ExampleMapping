@@ -165,6 +165,7 @@ export default function Sidebar({
         <textarea
           id="content-input"
           className="compose-textarea"
+          data-note-type={selectedType}
           placeholder="Type your note… (Ctrl+Enter to post)"
           maxLength={600}
           value={content}
