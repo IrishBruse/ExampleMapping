@@ -143,12 +143,17 @@ textarea {
     line-height: 1.6;
 }
 
-/* Composer only — room for longer tickets without tiny scroll region */
+/* Composer — proportional to board cards; scroll when tall */
 textarea.compose-textarea {
     height: auto;
-    min-height: 260px;
-    line-height: 1.6;
+    min-height: 148px;
+    max-height: min(42vh, 300px);
+    overflow-y: auto;
+    line-height: 1.55;
+    padding: 10px 12px;
+    border-radius: 3px;
     resize: vertical;
+    scrollbar-width: thin;
 }
 
 /* Border / focus ring follows selected note type (sidebar) */
@@ -383,6 +388,7 @@ main {
     display: flex;
     flex-wrap: wrap;
     align-content: flex-start;
+    align-items: flex-start;
     gap: 14px;
     background:
         radial-gradient(
@@ -413,6 +419,7 @@ main {
     flex-wrap: wrap;
     gap: 14px;
     align-content: flex-start;
+    align-items: flex-start;
 }
 
 .board-section-title--rule-example {
@@ -542,13 +549,16 @@ main {
     width: 210px;
     min-height: 170px;
     padding: 12px;
-    border-radius: var(--radius);
+    border-radius: 3px;
     display: flex;
     flex-direction: column;
     gap: 7px;
     position: relative;
+    align-self: flex-start;
     animation: pop-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
-    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.55);
+    box-shadow:
+        3px 3px 0 rgba(0, 0, 0, 0.42),
+        0 1px 0 rgba(0, 0, 0, 0.12) inset;
     word-break: break-word;
     transition:
         transform 0.15s ease,
@@ -557,7 +567,9 @@ main {
 
 .card:hover {
     transform: translate(-1px, -2px);
-    box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.5);
+    box-shadow:
+        4px 4px 0 rgba(0, 0, 0, 0.4),
+        0 1px 0 rgba(0, 0, 0, 0.1) inset;
 }
 @keyframes pop-in {
     from {
@@ -586,51 +598,34 @@ main {
     color: #111;
 }
 
-/* AI-marked stickies — very visible vs human notes */
-.card--ai {
-    border: 2px solid #00e5ff;
-    box-shadow:
-        4px 4px 0 rgba(0, 0, 0, 0.45),
-        0 0 0 1px rgba(0, 229, 255, 0.55),
-        0 0 32px rgba(0, 229, 255, 0.4);
-    background-image:
-        linear-gradient(145deg, rgba(255, 255, 255, 0.18) 0%, transparent 42%),
-        repeating-linear-gradient(
-            -24deg,
-            transparent,
-            transparent 7px,
-            rgba(0, 0, 0, 0.08) 7px,
-            rgba(0, 0, 0, 0.08) 14px
-        );
+/* Minimal AI label — sits before body text (see .card-content-block / .card-edit-main) */
+.card-ai-mark {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: rgba(0, 0, 0, 0.38);
+    line-height: 1.5;
+    padding-top: 3px;
+    user-select: none;
 }
-.card--ai:hover {
-    box-shadow:
-        5px 5px 0 rgba(0, 0, 0, 0.38),
-        0 0 0 2px rgba(0, 229, 255, 0.7),
-        0 0 40px rgba(0, 229, 255, 0.55);
+
+.card-content-block {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    min-height: 0;
 }
-.card-ai-ribbon {
-    position: absolute;
-    top: -1px;
-    right: 6px;
-    z-index: 2;
-    font-family: var(--font-display);
-    font-size: 12px;
-    letter-spacing: 0.22em;
-    padding: 4px 9px 3px;
-    background: linear-gradient(180deg, #26c6da 0%, #00838f 100%);
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    border-radius: 0 0 5px 5px;
-    box-shadow: 0 3px 14px rgba(0, 188, 212, 0.55);
-    pointer-events: none;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+.card:not(.editing) .card-content-block {
+    max-height: min(340px, 52vh);
+    overflow-y: auto;
+    scrollbar-width: thin;
 }
-.card--ai .card-header {
-    padding-right: 44px;
-}
-.card--ai .card-type {
-    opacity: 0.72;
+.card-content-block .card-content {
+    flex: 1;
+    min-width: 0;
 }
 
 .card-header {
@@ -690,8 +685,10 @@ main {
 .card-content {
     font-size: 12.5px;
     line-height: 1.58;
-    flex: 1;
     white-space: pre-wrap;
+}
+.card.editing .card-content-block {
+    display: none;
 }
 
 .card-linked-rules {
@@ -779,11 +776,20 @@ main {
     flex-direction: column;
     gap: 6px;
 }
-.card.editing .card-content {
-    display: none;
-}
 .card.editing .card-edit-area {
     display: flex;
+}
+.card-edit-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    flex: 1;
+    min-height: 0;
+}
+.card-edit-main .card-textarea {
+    flex: 1;
+    min-width: 0;
+    width: auto;
 }
 .card.editing .edit-btn {
     display: none;
@@ -797,6 +803,8 @@ main {
     width: 100%;
     flex: 1;
     min-height: 140px;
+    max-height: min(320px, 48vh);
+    overflow-y: auto;
     background: rgba(0, 0, 0, 0.15);
     border: 1px solid rgba(0, 0, 0, 0.25);
     border-radius: 2px;
@@ -805,8 +813,9 @@ main {
     font-size: 12px;
     line-height: 1.55;
     padding: 6px 8px;
-    resize: none;
+    resize: vertical;
     outline: none;
+    scrollbar-width: thin;
 }
 .card-footer {
     margin-top: auto;

@@ -155,20 +155,13 @@ export default function NoteCard({
     onDelete(note.id);
   };
 
-  const aiClass = note.isAi ? " card--ai" : "";
-
   return (
     <div
-      className={`card${isEditing ? " editing" : ""}${aiClass}`}
+      className={`card${isEditing ? " editing" : ""}`}
       data-id={note.id}
       data-type={note.type}
       data-ai={note.isAi ? "true" : undefined}
     >
-      {note.isAi && (
-        <div className="card-ai-ribbon" title="Marked as AI-generated">
-          AI
-        </div>
-      )}
       <div className="card-header">
         <span className="card-type">{note.type.toUpperCase()}</span>
         {isEditing ? (
@@ -188,7 +181,14 @@ export default function NoteCard({
         )}
       </div>
 
-      <div className="card-content">{note.content}</div>
+      <div className="card-content-block">
+        {note.isAi && (
+          <span className="card-ai-mark" title="AI-generated" aria-label="AI-generated">
+            AI
+          </span>
+        )}
+        <div className="card-content">{note.content}</div>
+      </div>
 
       {note.type === "Example" && linkedRules.length > 0 && !isEditing && (
         <div className="card-linked-rules" aria-label="Linked rules">
@@ -235,14 +235,21 @@ export default function NoteCard({
             )}
           </div>
         )}
-        <textarea
-          ref={textareaRef}
-          className="card-textarea"
-          maxLength={600}
-          value={editContent}
-          onChange={(e) => setEditContent(e.target.value)}
-          onKeyDown={handleKeyDown}
-        />
+        <div className="card-edit-main">
+          {isEditing && note.isAi && (
+            <span className="card-ai-mark" title="AI-generated" aria-label="AI-generated">
+              AI
+            </span>
+          )}
+          <textarea
+            ref={textareaRef}
+            className="card-textarea"
+            maxLength={600}
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+        </div>
       </div>
 
       <div className="card-footer">
