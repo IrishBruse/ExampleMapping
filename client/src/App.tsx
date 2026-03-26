@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import type { Note, NoteType } from "./types";
+import type { Note, NoteType, AgentFilesPayload } from "./types";
 import { socket } from "./socket";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
@@ -13,6 +13,9 @@ export default function App() {
     () => localStorage.getItem("authorName") ?? ""
   );
   const [connectedUsers, setConnectedUsers] = useState<string[]>([]);
+  const [agentPayload, setAgentPayload] = useState<AgentFilesPayload | null>(
+    null,
+  );
 
   useEffect(() => {
     const onConnect = () => {
@@ -48,6 +51,9 @@ export default function App() {
 
     const onUsersChanged = (users: string[]) => setConnectedUsers(users);
 
+    const onInitAgentFiles = (p: AgentFilesPayload) => setAgentPayload(p);
+    const onAgentFilesUpdated = (p: AgentFilesPayload) => setAgentPayload(p);
+
     const onNoteError = ({ message }: { message: string }) => {
       window.alert(message);
     };
@@ -59,6 +65,8 @@ export default function App() {
     socket.on("note_updated", onNoteUpdated);
     socket.on("note_removed", onNoteRemoved);
     socket.on("users_changed", onUsersChanged);
+    socket.on("init_agent_files", onInitAgentFiles);
+    socket.on("agent_files_updated", onAgentFilesUpdated);
     socket.on("note_error", onNoteError);
 
     return () => {
@@ -69,6 +77,8 @@ export default function App() {
       socket.off("note_updated", onNoteUpdated);
       socket.off("note_removed", onNoteRemoved);
       socket.off("users_changed", onUsersChanged);
+      socket.off("init_agent_files", onInitAgentFiles);
+      socket.off("agent_files_updated", onAgentFilesUpdated);
       socket.off("note_error", onNoteError);
     };
   }, []);
@@ -104,18 +114,29 @@ export default function App() {
   );
 
   const handlePost = useCallback(
-    (author: string, type: string, content: string, ruleIds?: string[]) => {
+    (
+      author: string,
+      type: string,
+      content: string,
+      ruleIds?: string[],
+    ) => {
       const payload: {
         author: string;
         type: NoteType;
         content: string;
         ruleIds?: string[];
+        isAi?: boolean;
       } = { author, type: type as NoteType, content };
       if (ruleIds !== undefined) payload.ruleIds = ruleIds;
+      if (type === "Rule") payload.isAi = true;
       socket.emit("new_note", payload);
     },
     [],
   );
+
+  const handleDelete = useCallback((id: string) => {
+    socket.emit("delete_note", { id });
+  }, []);
 
   return (
     <>
@@ -128,12 +149,14 @@ export default function App() {
         onPost={handlePost}
         connectedUsers={connectedUsers}
         rules={ruleNotes}
+        agentPayload={agentPayload}
       />
       <Board
         notes={notes}
         activeFilter={activeFilter}
         currentAuthor={currentAuthor}
         onEdit={handleEdit}
+        onDelete={handleDelete}
       />
     </>
   );

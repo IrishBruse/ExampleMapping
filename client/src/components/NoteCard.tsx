@@ -5,6 +5,7 @@ interface NoteCardProps {
   note: Note;
   currentAuthor: string;
   onEdit: (id: string, content: string, ruleIds?: string[]) => void;
+  onDelete: (id: string) => void;
   allRules: Note[];
 }
 
@@ -12,6 +13,7 @@ export default function NoteCard({
   note,
   currentAuthor,
   onEdit,
+  onDelete,
   allRules,
 }: NoteCardProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -23,6 +25,7 @@ export default function NoteCard({
 
   const isOwner =
     note.author.trim().toLowerCase() === currentAuthor.trim().toLowerCase();
+  const canDelete = isOwner || note.isAi === true;
 
   const [, num] = note.id.split("_");
 
@@ -111,12 +114,31 @@ export default function NoteCard({
     if (e.key === "Escape") handleCancel();
   };
 
+  const handleDelete = () => {
+    if (
+      !window.confirm(
+        "Delete this sticky permanently? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    onDelete(note.id);
+  };
+
+  const aiClass = note.isAi ? " card--ai" : "";
+
   return (
     <div
-      className={`card${isEditing ? " editing" : ""}`}
+      className={`card${isEditing ? " editing" : ""}${aiClass}`}
       data-id={note.id}
       data-type={note.type}
+      data-ai={note.isAi ? "true" : undefined}
     >
+      {note.isAi && (
+        <div className="card-ai-ribbon" title="Marked as AI-generated">
+          AI
+        </div>
+      )}
       <div className="card-header">
         <span className="card-type">{note.type.toUpperCase()}</span>
         <span className="card-id">#{num}</span>
@@ -188,6 +210,15 @@ export default function NoteCard({
           {isOwner && !isEditing && (
             <button type="button" className="card-btn edit-btn" onClick={handleEdit}>
               Edit
+            </button>
+          )}
+          {canDelete && !isEditing && (
+            <button
+              type="button"
+              className="card-btn delete-btn"
+              onClick={handleDelete}
+            >
+              Delete
             </button>
           )}
           {isEditing && (

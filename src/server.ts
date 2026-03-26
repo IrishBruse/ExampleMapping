@@ -11,6 +11,8 @@ import type {
     TypeCounters,
     ServerToClientEvents,
     ClientToServerEvents,
+    AgentFileEntry,
+    AgentFilesPayload,
 } from "./types";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -18,7 +20,10 @@ import type {
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.resolve(__dirname, "../client/dist");
 
-function loadConfig(): { outputDir: string; accessToken?: string } {
+function loadConfig(): {
+    outputDir: string;
+    accessToken?: string;
+} {
     const configPath = path.resolve(__dirname, "../config.json");
     const defaults = { outputDir: "./context_files" };
     try {
@@ -31,7 +36,90 @@ function loadConfig(): { outputDir: string; accessToken?: string } {
 }
 
 const config = loadConfig();
-const CONTEXT_DIR = path.resolve(__dirname, "..", config.outputDir);
+const PROJECT_ROOT = path.resolve(__dirname, "..");
+const CONTEXT_DIR = path.resolve(PROJECT_ROOT, config.outputDir);
+
+/** AI-generated files always live under `<outputDir>/agent/` (author folder name is always `agent`). */
+const AGENT_DIR = path.join(CONTEXT_DIR, "agent");
+
+const MAX_AGENT_FILE_BYTES = 512 * 1024;
+const AGENT_TEXT_EXT = new Set([
+    ".md",
+    ".txt",
+    ".json",
+    ".jsonl",
+    ".log",
+    ".ts",
+    ".tsx",
+    ".js",
+    ".mjs",
+    ".cjs",
+    ".yaml",
+    ".yml",
+]);
+
+function isAgentTextFile(name: string): boolean {
+    const lower = name.toLowerCase();
+    const dot = lower.lastIndexOf(".");
+    if (dot === -1) return true;
+    return AGENT_TEXT_EXT.has(lower.slice(dot));
+}
+
+function scanAgentFiles(root: string): AgentFileEntry[] {
+    const out: AgentFileEntry[] = [];
+    function walk(dir: string, relPrefix: string): void {
+        let entries: fs.Dirent[];
+        try {
+            entries = fs.readdirSync(dir, { withFileTypes: true });
+        } catch {
+            return;
+        }
+        for (const e of entries) {
+            if (e.name.startsWith(".") || e.name === "node_modules") continue;
+            const rel = relPrefix ? `${relPrefix}/${e.name}` : e.name;
+            const full = path.join(dir, e.name);
+            if (e.isDirectory()) {
+                walk(full, rel);
+            } else if (e.isFile() && isAgentTextFile(e.name)) {
+                try {
+                    const st = fs.statSync(full);
+                    const maxRead = Math.min(st.size, MAX_AGENT_FILE_BYTES);
+                    const buf = fs.readFileSync(full);
+                    const truncated = st.size > MAX_AGENT_FILE_BYTES;
+                    out.push({
+                        relPath: rel.replace(/\\/g, "/"),
+                        name: e.name,
+                        mtimeMs: st.mtimeMs,
+                        content: buf.subarray(0, maxRead).toString("utf8"),
+                        truncated: truncated || undefined,
+                    });
+                } catch {
+                    /* unreadable */
+                }
+            }
+        }
+    }
+    walk(root, "");
+    out.sort((a, b) => a.relPath.localeCompare(b.relPath));
+    return out;
+}
+
+function buildAgentPayload(): AgentFilesPayload {
+    if (!fs.existsSync(AGENT_DIR)) {
+        return {
+            enabled: false,
+            label: "",
+            watchPath: AGENT_DIR,
+            files: [],
+        };
+    }
+    return {
+        enabled: true,
+        label: "agent",
+        watchPath: AGENT_DIR,
+        files: scanAgentFiles(AGENT_DIR),
+    };
+}
 
 const NOTE_TYPES: NoteType[] = ["Story", "Rule", "Example", "Question"];
 
@@ -103,6 +191,28 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     cors: { origin: "*" },
 });
 
+let agentWatchDebounce: NodeJS.Timeout | null = null;
+function scheduleAgentRescan(): void {
+    if (agentWatchDebounce) clearTimeout(agentWatchDebounce);
+    agentWatchDebounce = setTimeout(() => {
+        agentWatchDebounce = null;
+        io.emit("agent_files_updated", buildAgentPayload());
+    }, 300);
+}
+
+if (!fs.existsSync(AGENT_DIR)) {
+    try {
+        fs.mkdirSync(AGENT_DIR, { recursive: true });
+        console.log(`Created agent watch directory: ${AGENT_DIR}`);
+    } catch (e) {
+        console.warn(`Could not create agent directory ${AGENT_DIR}:`, e);
+    }
+}
+if (fs.existsSync(AGENT_DIR)) {
+    fs.watch(AGENT_DIR, { recursive: true }, () => scheduleAgentRescan());
+    console.log(`Watching agent output: ${AGENT_DIR}`);
+}
+
 io.use((socket, next) => {
     if (!config.accessToken) return next();
     const token = socket.handshake.auth?.token as string | undefined;
@@ -152,6 +262,10 @@ function absPath(relPath: string): string {
     return path.join(CONTEXT_DIR, relPath);
 }
 
+function sourceFrontmatter(note: Note): string {
+    return note.isAi ? "Source: ai\n" : "";
+}
+
 function buildMarkdown(note: Note): string {
     const rulesFm =
         note.type === "Example"
@@ -162,7 +276,7 @@ Author: ${note.author}
 Type: ${note.type}
 ID: ${note.id}
 Time: ${note.timestamp}
-${rulesFm}---
+${sourceFrontmatter(note)}${rulesFm}---
 # ${note.type}
 ${note.content}
 `;
@@ -231,24 +345,18 @@ function examplesForRule(ruleId: string): Note[] {
         );
 }
 
-/** Rule files store generated "## Examples" on disk; strip so we never duplicate on rebuild. */
+/** Legacy Rule files had a generated "## Examples" body section; strip on load. */
 function stripRuleExamplesSectionFromBody(body: string): string {
     return body.replace(/\r?\n## Examples[\s\S]*$/u, "").trimEnd();
 }
 
-function buildRuleMarkdownWithExamples(rule: Note, examples: Note[]): string {
-    const examplesSection =
-        examples.length === 0
-            ? "\n_No examples yet._\n"
-            : "\n" +
-              examples
-                  .map(
-                      (ex) =>
-                          `- **[${ex.id}]** ${ex.content}  _(${ex.author})_`,
-                  )
-                  .join("\n") +
-              "\n";
-
+/** Rule body on disk: frontmatter includes `Examples: Example_1, …` (IDs only); no inline example text. */
+function buildRuleMarkdown(rule: Note): string {
+    const examples = examplesForRule(rule.id);
+    const examplesFm =
+        examples.length > 0
+            ? `Examples: ${examples.map((e) => e.id).join(", ")}\n`
+            : "";
     const ruleBody = stripRuleExamplesSectionFromBody(rule.content);
 
     return `---
@@ -256,23 +364,18 @@ Author: ${rule.author}
 Type: ${rule.type}
 ID: ${rule.id}
 Time: ${rule.timestamp}
----
+${sourceFrontmatter(rule)}${examplesFm}---
 # Rule
 ${ruleBody}
-
-## Examples
-${examplesSection}`;
+`;
 }
 
-/** Re-write every Rule file on disk with examples that list that rule in ruleIds. */
+/** Re-write every Rule file on disk with up-to-date Examples: line in frontmatter. */
 function rebuildAllRuleFiles(): void {
     const rules = [...noteIndex.values()].filter((n) => n.type === "Rule");
 
     for (const rule of rules) {
-        const md = buildRuleMarkdownWithExamples(
-            rule,
-            examplesForRule(rule.id),
-        );
+        const md = buildRuleMarkdown(rule);
         fs.writeFileSync(absPath(rule.relPath), md, "utf-8");
     }
 }
@@ -286,6 +389,7 @@ function parseNoteFile(relPath: string): Note | null {
             | undefined;
         const id = raw.match(/^ID:\s*(.+)$/m)?.[1]?.trim();
         const time = raw.match(/^Time:\s*(.+)$/m)?.[1]?.trim();
+        const sourceRaw = raw.match(/^Source:\s*(.+)$/m)?.[1]?.trim().toLowerCase();
         let content = raw.match(/^#\s*.+\n([\s\S]+)$/m)?.[1]?.trim();
         if (!author || !type || !id || !time || !content) return null;
         if (type === "Rule") {
@@ -300,6 +404,9 @@ function parseNoteFile(relPath: string): Note | null {
             timestamp: time,
             relPath,
         };
+        if (sourceRaw === "ai") {
+            note.isAi = true;
+        }
         if (type === "Example" && parsedRules !== undefined) {
             note.ruleIds = parsedRules;
         }
@@ -352,6 +459,63 @@ function broadcastUsers(): void {
     io.emit("users_changed", names);
 }
 
+function isNoteOwner(socketId: string, note: Note): boolean {
+    const name = connectedUsers.get(socketId)?.trim().toLowerCase() ?? "";
+    return (
+        name.length > 0 && name === note.author.trim().toLowerCase()
+    );
+}
+
+/** Deletes a note and dependent example files if a rule is removed. Returns ids removed (examples first, then target), or null on failure. */
+function deleteNoteById(id: string): string[] | null {
+    const note = noteIndex.get(id);
+    if (!note) return null;
+
+    const removedIds: string[] = [];
+
+    if (note.type === "Rule") {
+        const toRemove: string[] = [];
+        const toUpdate: Note[] = [];
+        for (const n of noteIndex.values()) {
+            if (n.type !== "Example" || !n.ruleIds?.includes(id)) continue;
+            const next = n.ruleIds.filter((rid) => rid !== id);
+            if (next.length === 0) {
+                toRemove.push(n.id);
+            } else {
+                toUpdate.push({ ...n, ruleIds: next });
+            }
+        }
+        for (const eid of toRemove) {
+            const ex = noteIndex.get(eid);
+            if (!ex) continue;
+            try {
+                fs.unlinkSync(absPath(ex.relPath));
+            } catch {
+                return null;
+            }
+            noteIndex.delete(eid);
+            removedIds.push(eid);
+        }
+        for (const n of toUpdate) {
+            noteIndex.set(n.id, n);
+            fs.writeFileSync(absPath(n.relPath), buildMarkdown(n), "utf-8");
+        }
+    }
+
+    try {
+        fs.unlinkSync(absPath(note.relPath));
+    } catch {
+        return null;
+    }
+    noteIndex.delete(id);
+    removedIds.push(id);
+
+    if (note.type === "Rule" || note.type === "Example") {
+        rebuildAllRuleFiles();
+    }
+    return removedIds;
+}
+
 // ─── Socket Events ────────────────────────────────────────────────────────────
 
 io.on("connection", (socket) => {
@@ -360,13 +524,14 @@ io.on("connection", (socket) => {
     broadcastUsers();
 
     socket.emit("init_notes", [...noteIndex.values()]);
+    socket.emit("init_agent_files", buildAgentPayload());
 
     socket.on("set_username", (name: string) => {
         connectedUsers.set(socket.id, name.trim().slice(0, 32));
         broadcastUsers();
     });
 
-    socket.on("new_note", ({ author, type, content, ruleIds }) => {
+    socket.on("new_note", ({ author, type, content, ruleIds, isAi }) => {
         let resolvedExampleRuleIds: string[] | undefined;
         if (type === "Example") {
             const raw = Array.isArray(ruleIds) ? ruleIds : [];
@@ -390,17 +555,16 @@ io.on("connection", (socket) => {
             fs.mkdirSync(userAbsDir, { recursive: true });
 
         let note: Note = { id, author, type, content, timestamp, relPath };
+        if (isAi) {
+            note = { ...note, isAi: true };
+        }
         if (type === "Example" && resolvedExampleRuleIds) {
             note = { ...note, ruleIds: resolvedExampleRuleIds };
         }
         noteIndex.set(id, note);
 
         if (type === "Rule") {
-            fs.writeFileSync(
-                absPath(relPath),
-                buildRuleMarkdownWithExamples(note, examplesForRule(note.id)),
-                "utf-8",
-            );
+            fs.writeFileSync(absPath(relPath), buildRuleMarkdown(note), "utf-8");
         } else {
             fs.writeFileSync(absPath(relPath), buildMarkdown(note), "utf-8");
         }
@@ -417,6 +581,12 @@ io.on("connection", (socket) => {
         const note = noteIndex.get(id);
         if (!note) {
             console.warn(`edit_note: unknown id "${id}"`);
+            return;
+        }
+        if (!isNoteOwner(socket.id, note)) {
+            socket.emit("note_error", {
+                message: "You can only edit your own notes.",
+            });
             return;
         }
         let updated: Note = { ...note, content };
@@ -436,10 +606,7 @@ io.on("connection", (socket) => {
         if (updated.type === "Rule") {
             fs.writeFileSync(
                 absPath(updated.relPath),
-                buildRuleMarkdownWithExamples(
-                    updated,
-                    examplesForRule(updated.id),
-                ),
+                buildRuleMarkdown(updated),
                 "utf-8",
             );
         } else {
@@ -456,6 +623,32 @@ io.on("connection", (socket) => {
         }
 
         io.emit("note_updated", updated);
+    });
+
+    socket.on("delete_note", ({ id }) => {
+        const note = noteIndex.get(id);
+        if (!note) {
+            socket.emit("note_error", { message: "Note not found." });
+            return;
+        }
+        const canDelete =
+            isNoteOwner(socket.id, note) || note.isAi === true;
+        if (!canDelete) {
+            socket.emit("note_error", {
+                message: "You can only delete your own notes.",
+            });
+            return;
+        }
+        const removed = deleteNoteById(id);
+        if (!removed) {
+            socket.emit("note_error", {
+                message: "Could not delete note from disk.",
+            });
+            return;
+        }
+        for (const rid of removed) {
+            io.emit("note_removed", rid);
+        }
     });
 
     socket.on("disconnect", () => {

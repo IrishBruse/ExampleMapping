@@ -62,6 +62,10 @@ Time: 2024-01-15T10:30:00.000Z
 Should we validate the schema before or after the DB write?
 ```
 
+**Rule files** add an `Examples:` line in the frontmatter (comma-separated example IDs only). Example bodies are not inlined under the rule—the UI and links use the Example cards and each example’s own file.
+
+**Example files** include `Rules: Rule_1, Rule_2` in the frontmatter to link to rules.
+
 ## Note Types & Colours
 
 | Type     | Colour   | Intent                           |

@@ -7,6 +7,7 @@ interface BoardProps {
   activeFilter: string;
   currentAuthor: string;
   onEdit: (id: string, content: string, ruleIds?: string[]) => void;
+  onDelete: (id: string) => void;
 }
 
 function sortById(a: Note, b: Note): number {
@@ -16,22 +17,26 @@ function sortById(a: Note, b: Note): number {
   return parseInt(aN, 10) - parseInt(bN, 10);
 }
 
+function isAgentAuthor(note: Note): boolean {
+  return note.author.trim().toLowerCase() === "agent";
+}
+
 export default function Board({
   notes,
   activeFilter,
   currentAuthor,
   onEdit,
+  onDelete,
 }: BoardProps) {
   const boardRef = useRef<HTMLElement>(null);
   const prevCountRef = useRef(0);
 
-  const visible = useMemo(
-    () =>
-      [...notes.values()].filter(
-        (n) => activeFilter === "All" || n.type === activeFilter,
-      ),
-    [notes, activeFilter],
-  );
+  const visible = useMemo(() => {
+    const list = [...notes.values()];
+    if (activeFilter === "All") return list;
+    if (activeFilter === "Agent") return list.filter(isAgentAuthor);
+    return list.filter((n) => n.type === activeFilter);
+  }, [notes, activeFilter]);
 
   const stories = useMemo(
     () => visible.filter((n) => n.type === "Story").sort(sortById),
@@ -80,6 +85,7 @@ export default function Board({
       note={note}
       currentAuthor={currentAuthor}
       onEdit={onEdit}
+      onDelete={onDelete}
       allRules={allRules}
     />
   );
@@ -90,7 +96,11 @@ export default function Board({
   return (
     <main id="board" ref={boardRef}>
       {totalVisible === 0 ? (
-        <div id="empty-msg">No notes yet — post the first one ↗</div>
+        <div id="empty-msg">
+          {activeFilter === "Agent"
+            ? "No notes by agent yet."
+            : "No notes yet — post the first one ↗"}
+        </div>
       ) : useGroupedLayout ? (
         <>
           {stories.length > 0 && (
@@ -135,6 +145,7 @@ export default function Board({
                                 note={ex}
                                 currentAuthor={currentAuthor}
                                 onEdit={onEdit}
+                                onDelete={onDelete}
                                 allRules={allRules}
                               />
                             ))

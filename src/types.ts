@@ -11,9 +11,14 @@ export interface Note {
   timestamp: string; // ISO 8601 — stored in frontmatter only, not in filename
   /** Relative path inside context_files/, e.g. "alice/Story_4.md" */
   relPath: string;
+  /** True when marked as AI-generated (persisted as `Source: ai` in frontmatter) */
+  isAi?: boolean;
   /**
    * For Example notes only: which rules this example illustrates.
    * Omitted on other types. Persisted in frontmatter as `Rules: Rule_1, Rule_2`.
+   *
+   * Rule notes on disk include `Examples: Example_1, …` in frontmatter (IDs only;
+   * example bodies live in their own files).
    */
   ruleIds?: string[];
 }
@@ -35,6 +40,32 @@ export interface ServerToClientEvents {
   users_changed: (users: string[]) => void;
   /** Validation failed for new_note or edit_note */
   note_error: (payload: { message: string }) => void;
+
+  /** Initial snapshot of externally generated agent files (after init_notes) */
+  init_agent_files: (payload: AgentFilesPayload) => void;
+  /** Fired when files under the agent watch directory change */
+  agent_files_updated: (payload: AgentFilesPayload) => void;
+}
+
+/** One file under the watched agent directory */
+export interface AgentFileEntry {
+  /** Path relative to watch root (forward slashes) */
+  relPath: string;
+  name: string;
+  mtimeMs: number;
+  /** UTF-8 text; may be truncated for very large files */
+  content: string;
+  truncated?: boolean;
+}
+
+export interface AgentFilesPayload {
+  /** False when `<outputDir>/agent` is missing (e.g. could not be created) */
+  enabled: boolean;
+  /** Display label (e.g. folder basename) */
+  label: string;
+  /** Absolute path being watched */
+  watchPath: string;
+  files: AgentFileEntry[];
 }
 
 export interface ClientToServerEvents {
@@ -45,6 +76,8 @@ export interface ClientToServerEvents {
     content: string;
     /** Required when type is Example: at least one rule id */
     ruleIds?: string[];
+    /** When true, sticky is styled as AI-generated */
+    isAi?: boolean;
   }) => void;
   /** Owner edits their own note */
   edit_note: (payload: {
@@ -53,6 +86,8 @@ export interface ClientToServerEvents {
     /** When editing an Example, updates which rules it is linked to */
     ruleIds?: string[];
   }) => void;
+  /** Owner deletes their note */
+  delete_note: (payload: { id: string }) => void;
   /** Client sets or updates their display name */
   set_username: (name: string) => void;
 }
