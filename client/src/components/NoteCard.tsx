@@ -47,11 +47,6 @@ export default function NoteCard({
 
   const [, num] = note.id.split("_");
 
-  const linkedRules =
-    note.type === "Example"
-      ? allRules.filter((r) => (note.ruleIds ?? []).includes(r.id))
-      : [];
-
   useEffect(() => {
     if (isEditing && textareaRef.current) {
       textareaRef.current.focus();
@@ -187,7 +182,7 @@ export default function NoteCard({
       </div>
 
       <div className="card-content-block">
-        {note.isAi && (
+        {note.isAi && !isAgentAuthor && (
           <span className="card-ai-mark" title="AI-generated" aria-label="AI-generated">
             AI
           </span>
@@ -216,23 +211,6 @@ export default function NoteCard({
           </div>
         )}
       </div>
-
-      {note.type === "Example" && linkedRules.length > 0 && !isEditing && (
-        <div className="card-linked-rules" aria-label="Linked rules">
-          {linkedRules.map((r) => {
-            const [, rn] = r.id.split("_");
-            return (
-              <span key={r.id} className="card-rule-chip" title={r.content}>
-                Rule #{rn}
-              </span>
-            );
-          })}
-        </div>
-      )}
-
-      {note.type === "Example" && linkedRules.length === 0 && !isEditing && (
-        <p className="card-linked-rules-empty">Not linked to any rule — edit to choose rules.</p>
-      )}
 
       <div className="card-edit-area">
         {isEditing && note.type === "Example" && (
@@ -263,7 +241,7 @@ export default function NoteCard({
           </div>
         )}
         <div className="card-edit-main">
-          {isEditing && note.isAi && (
+          {isEditing && note.isAi && !isAgentAuthor && (
             <span className="card-ai-mark" title="AI-generated" aria-label="AI-generated">
               AI
             </span>
