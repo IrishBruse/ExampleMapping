@@ -354,6 +354,7 @@ export default function NoteCard({
           >
             <div
               className="gherkin-modal note-read-modal"
+              data-type={note.type}
               role="dialog"
               aria-modal="true"
               aria-labelledby="note-read-modal-title"
