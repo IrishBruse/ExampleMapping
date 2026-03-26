@@ -720,7 +720,7 @@ io.on("connection", (socket) => {
         if (!displayName) {
             socket.emit("note_error", {
                 message:
-                    "Set your display name in the sidebar before saving agent files.",
+                    "Set your display name in the toolbar before saving agent files.",
             });
             return;
         }

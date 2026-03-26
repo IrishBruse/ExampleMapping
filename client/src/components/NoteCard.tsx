@@ -312,7 +312,7 @@ export default function NoteCard({
                 disabled={!hasDisplayName || lockedByOther}
                 title={
                   !hasDisplayName
-                    ? "Set your display name in the sidebar to edit notes."
+                    ? "Set your display name in the toolbar to edit notes."
                     : lockedByOther
                       ? `${editLockedBy} is editing`
                       : "Edit this note"

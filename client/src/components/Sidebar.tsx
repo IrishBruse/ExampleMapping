@@ -22,7 +22,6 @@ const CONTENT_MAX: Record<NoteType, number> = {
 
 interface SidebarProps {
   currentAuthor: string;
-  onAuthorChange: (author: string) => void;
   activeFilter: string;
   onFilterChange: (filter: string) => void;
   onPost: (
@@ -43,7 +42,6 @@ interface SidebarProps {
 
 export default function Sidebar({
   currentAuthor,
-  onAuthorChange,
   activeFilter,
   onFilterChange,
   onPost,
@@ -109,20 +107,6 @@ export default function Sidebar({
 
   return (
     <aside>
-      <div>
-        <div className="field-label">Your name</div>
-        <input
-          type="text"
-          id="author-input"
-          placeholder="e.g. Alice"
-          maxLength={32}
-          value={currentAuthor}
-          onChange={(e) => onAuthorChange(e.target.value)}
-        />
-      </div>
-
-      <hr className="divider" />
-
       <div>
         <div className="field-label">Note type</div>
         <div className="type-grid">

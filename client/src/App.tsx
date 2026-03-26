@@ -222,10 +222,14 @@ export default function App() {
 
   return (
     <>
-      <Header connected={connected} noteCount={notes.size} />
-      <Sidebar
+      <Header
+        connected={connected}
+        noteCount={notes.size}
         currentAuthor={currentAuthor}
         onAuthorChange={handleAuthorChange}
+      />
+      <Sidebar
+        currentAuthor={currentAuthor}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
         onPost={handlePost}

@@ -56,6 +56,21 @@ header {
     align-items: center;
     gap: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    flex-wrap: wrap;
+    row-gap: 8px;
+}
+.header-author {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.header-author-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    flex-shrink: 0;
 }
 header h1 {
     font-family: var(--font-display);
@@ -139,6 +154,13 @@ input[type="text"]:focus,
 textarea:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 2px rgba(240, 224, 64, 0.15);
+}
+header input.header-author-input {
+    width: min(200px, 28vw);
+    min-width: 120px;
+    max-width: 260px;
+    padding: 6px 10px;
+    font-size: 12px;
 }
 textarea {
     height: 130px;
