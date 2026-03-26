@@ -7,10 +7,9 @@ const NOTE_TYPES: { type: NoteType; label: string }[] = [
   { type: "Rule", label: "Rule" },
   { type: "Example", label: "Example" },
   { type: "Question", label: "Question" },
-  { type: "Feature", label: "Feature" },
 ];
 
-const FILTERS = ["All", "Story", "Rule", "Example", "Question", "Feature", "Agent"];
+const FILTERS = ["All", "Story", "Rule", "Example", "Question", "Agent"];
 
 const CONTENT_MAX: Record<NoteType, number> = {
   Story: 600,
@@ -166,11 +165,7 @@ export default function Sidebar({
           id="content-input"
           className="compose-textarea"
           data-note-type={selectedType}
-          placeholder={
-            selectedType === "Feature"
-              ? "Feature: Title\n  Scenario: …\n    Given …\n    When …\n    Then …"
-              : "Type your note… (Ctrl+Enter to post)"
-          }
+          placeholder="Type your note… (Ctrl+Enter to post)"
           maxLength={contentMax}
           value={content}
           onChange={(e) => setContent(e.target.value)}
