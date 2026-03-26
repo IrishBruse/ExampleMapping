@@ -483,7 +483,6 @@ main {
     display: flex;
     flex-direction: column;
     width: 100%;
-    border: 1px solid var(--border);
     border-radius: var(--radius);
     background: rgba(255, 255, 255, 0.02);
     overflow: hidden;
@@ -498,10 +497,6 @@ main {
     gap: 16px 20px;
     padding: 14px 16px;
     align-items: start;
-    border-bottom: 1px solid var(--border);
-}
-.board-rule-row:last-child {
-    border-bottom: none;
 }
 .board-rule-row__rule {
     flex-shrink: 0;
