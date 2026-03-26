@@ -1,8 +1,21 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import type { Note } from "../types";
+
+const MARKDOWN_COMPONENTS = {
+  a: (props: React.ComponentProps<"a">) => (
+    <a {...props} target="_blank" rel="noopener noreferrer" />
+  ),
+  img: ({
+    node: _n,
+    ...props
+  }: React.ComponentProps<"img"> & { node?: unknown }) => (
+    <img {...props} alt={props.alt ?? ""} className="card-md-img" />
+  ),
+};
 
 interface NoteCardProps {
   note: Note;
@@ -26,6 +39,8 @@ export default function NoteCard({
   onRequestBeginEdit,
   onEndEdit,
 }: NoteCardProps) {
+  const [readerOpen, setReaderOpen] = useState(false);
+  const expandBtnRef = useRef<HTMLButtonElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(note.content);
   const [editRuleIds, setEditRuleIds] = useState<Set<string>>(
@@ -46,6 +61,32 @@ export default function NoteCard({
       currentAuthor.trim().toLowerCase();
 
   const [, num] = note.id.split("_");
+
+  const closeReader = useCallback(() => {
+    setReaderOpen(false);
+    expandBtnRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!readerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeReader();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [readerOpen, closeReader]);
+
+  useEffect(() => {
+    if (!readerOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [readerOpen]);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -163,7 +204,9 @@ export default function NoteCard({
       data-ai={note.isAi ? "true" : undefined}
     >
       <div className="card-header">
-        <span className="card-type">{note.type.toUpperCase()}</span>
+        <span className="card-type">
+          {note.type === "Question" ? note.id : note.type.toUpperCase()}
+        </span>
         {isEditing ? (
           <span className="card-id">#{num}</span>
         ) : canDelete ? (
@@ -193,18 +236,7 @@ export default function NoteCard({
           <div className="card-content card-content--markdown">
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkBreaks]}
-              components={{
-                a: (props) => (
-                  <a
-                    {...props}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  />
-                ),
-                img: ({ node: _n, ...props }) => (
-                  <img {...props} alt={props.alt ?? ""} className="card-md-img" />
-                ),
-              }}
+              components={MARKDOWN_COMPONENTS}
             >
               {note.content}
             </ReactMarkdown>
@@ -264,21 +296,33 @@ export default function NoteCard({
         </div>
         <div className="card-actions">
           {!isEditing && (
-            <button
-              type="button"
-              className="card-btn edit-btn"
-              onClick={() => void handleEdit()}
-              disabled={!hasDisplayName || lockedByOther}
-              title={
-                !hasDisplayName
-                  ? "Set your display name in the sidebar to edit notes."
-                  : lockedByOther
-                    ? `${editLockedBy} is editing`
-                    : "Edit this note"
-              }
-            >
-              Edit
-            </button>
+            <>
+              <button
+                ref={expandBtnRef}
+                type="button"
+                className="card-btn expand-btn"
+                onClick={() => setReaderOpen(true)}
+                title="Open in a larger view for reading"
+                aria-label="Expand note for reading"
+              >
+                Expand
+              </button>
+              <button
+                type="button"
+                className="card-btn edit-btn"
+                onClick={() => void handleEdit()}
+                disabled={!hasDisplayName || lockedByOther}
+                title={
+                  !hasDisplayName
+                    ? "Set your display name in the sidebar to edit notes."
+                    : lockedByOther
+                      ? `${editLockedBy} is editing`
+                      : "Edit this note"
+                }
+              >
+                Edit
+              </button>
+            </>
           )}
           {isEditing && (
             <>
@@ -302,6 +346,54 @@ export default function NoteCard({
           )}
         </div>
       </div>
+
+      {readerOpen &&
+        createPortal(
+          <div
+            className="gherkin-modal-backdrop note-read-modal-backdrop"
+            role="presentation"
+            onClick={closeReader}
+          >
+            <div
+              className="gherkin-modal note-read-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="note-read-modal-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <header className="gherkin-modal-header">
+                <h2 id="note-read-modal-title" className="gherkin-modal-title">
+                  {note.type === "Question" ? note.id : `${note.type} · ${note.id}`}
+                </h2>
+                <button
+                  type="button"
+                  className="gherkin-modal-close"
+                  onClick={closeReader}
+                  aria-label="Close expanded view"
+                >
+                  ×
+                </button>
+              </header>
+              <div className="gherkin-modal-body">
+                <div className="gherkin-modal-scroll note-read-modal-scroll">
+                  {note.type === "Feature" ? (
+                    <pre className="card-content card-content--gherkin">{note.content}</pre>
+                  ) : (
+                    <div className="card-content card-content--markdown">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
+                        components={MARKDOWN_COMPONENTS}
+                      >
+                        {note.content}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

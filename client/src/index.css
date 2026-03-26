@@ -1272,6 +1272,16 @@ main {
     background: var(--surface);
 }
 
+/* Expanded sticky note reader (same shell as Gherkin modal) */
+.note-read-modal-scroll .card-content {
+    font-size: 14px;
+    line-height: 1.62;
+}
+.note-read-modal-scroll .card-content--gherkin {
+    font-size: 13px;
+    line-height: 1.55;
+}
+
 .gherkin-view {
     font-family: var(--font-mono);
     font-size: 11px;

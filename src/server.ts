@@ -283,13 +283,14 @@ function buildMarkdown(note: Note): string {
         note.type === "Example"
             ? `Rules: ${(note.ruleIds ?? []).join(", ")}\n`
             : "";
+    const titleLine = note.type === "Question" ? note.id : note.type;
     return `---
 Author: ${note.author}
 Type: ${note.type}
 ID: ${note.id}
 Time: ${note.timestamp}
 ${sourceFrontmatter(note)}${rulesFm}---
-# ${note.type}
+# ${titleLine}
 ${note.content}
 `;
 }
