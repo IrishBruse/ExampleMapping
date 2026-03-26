@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import type { Note, NoteType, AgentFilesPayload } from "../types";
-import AgentFilesPanel from "./AgentFilesPanel";
+import type { Note, NoteType } from "../types";
 
 const NOTE_TYPES: { type: NoteType; label: string }[] = [
   { type: "Story", label: "Story" },
@@ -25,7 +24,6 @@ interface SidebarProps {
   connectedUsers: string[];
   /** Rules available when posting an Example */
   rules: Note[];
-  agentPayload: AgentFilesPayload | null;
 }
 
 export default function Sidebar({
@@ -36,7 +34,6 @@ export default function Sidebar({
   onPost,
   connectedUsers,
   rules,
-  agentPayload,
 }: SidebarProps) {
   const [selectedType, setSelectedType] = useState<NoteType>("Story");
   const [content, setContent] = useState("");
@@ -206,8 +203,6 @@ export default function Sidebar({
           )}
         </ul>
       </div>
-
-      <AgentFilesPanel payload={agentPayload} />
     </aside>
   );
 }
