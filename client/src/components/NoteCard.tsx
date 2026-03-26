@@ -204,9 +204,7 @@ export default function NoteCard({
       data-ai={note.isAi ? "true" : undefined}
     >
       <div className="card-header">
-        <span className="card-type">
-          {note.type === "Question" ? note.id : note.type.toUpperCase()}
-        </span>
+        <span className="card-type">{note.id}</span>
         {isEditing ? (
           <span className="card-id">#{num}</span>
         ) : canDelete ? (
@@ -363,7 +361,7 @@ export default function NoteCard({
             >
               <header className="gherkin-modal-header">
                 <h2 id="note-read-modal-title" className="gherkin-modal-title">
-                  {note.type === "Question" ? note.id : `${note.type} · ${note.id}`}
+                  {note.id}
                 </h2>
                 <button
                   type="button"
