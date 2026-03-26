@@ -1,4 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import type { Note } from "../types";
 
 interface NoteCardProps {
@@ -187,7 +190,25 @@ export default function NoteCard({
             AI
           </span>
         )}
-        <div className="card-content">{note.content}</div>
+        <div className="card-content card-content--markdown">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkBreaks]}
+            components={{
+              a: (props) => (
+                <a
+                  {...props}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                />
+              ),
+              img: ({ node: _n, ...props }) => (
+                <img {...props} alt={props.alt ?? ""} className="card-md-img" />
+              ),
+            }}
+          >
+            {note.content}
+          </ReactMarkdown>
+        </div>
       </div>
 
       {note.type === "Example" && linkedRules.length > 0 && !isEditing && (

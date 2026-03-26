@@ -681,11 +681,119 @@ main {
 .card-delete-x:active {
     transform: scale(0.92);
 }
-/* View mode */
+/* View mode — body is Markdown-rendered */
 .card-content {
     font-size: 12.5px;
     line-height: 1.58;
-    white-space: pre-wrap;
+}
+.card-content--markdown {
+    white-space: normal;
+    word-break: break-word;
+}
+.card-content--markdown > *:first-child {
+    margin-top: 0;
+}
+.card-content--markdown p {
+    margin: 0 0 0.5em;
+}
+.card-content--markdown p:last-child {
+    margin-bottom: 0;
+}
+.card-content--markdown h1,
+.card-content--markdown h2,
+.card-content--markdown h3,
+.card-content--markdown h4 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    line-height: 1.25;
+    margin: 0.45em 0 0.3em;
+}
+.card-content--markdown h1 {
+    font-size: 1.2em;
+}
+.card-content--markdown h2 {
+    font-size: 1.1em;
+}
+.card-content--markdown h3,
+.card-content--markdown h4 {
+    font-size: 1em;
+}
+.card-content--markdown ul,
+.card-content--markdown ol {
+    margin: 0.35em 0 0.55em;
+    padding-left: 1.15em;
+}
+.card-content--markdown li {
+    margin: 0.12em 0;
+}
+.card-content--markdown li > p {
+    margin: 0;
+}
+.card-content--markdown code {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    background: rgba(0, 0, 0, 0.12);
+    padding: 0.08em 0.28em;
+    border-radius: 2px;
+}
+.card-content--markdown pre {
+    margin: 0.45em 0;
+    padding: 6px 8px;
+    overflow-x: auto;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
+    font-size: 11px;
+    line-height: 1.45;
+}
+.card-content--markdown pre code {
+    background: none;
+    padding: 0;
+    font-size: inherit;
+}
+.card-content--markdown a {
+    color: #0d47a1;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.card-content--markdown a:hover {
+    color: #1565c0;
+}
+.card-content--markdown blockquote {
+    margin: 0.4em 0;
+    padding: 0.2em 0 0.2em 0.55em;
+    border-left: 2px solid rgba(0, 0, 0, 0.28);
+    color: rgba(0, 0, 0, 0.78);
+}
+.card-content--markdown hr {
+    margin: 0.55em 0;
+    border: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.22);
+}
+.card-content--markdown table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+    margin: 0.4em 0;
+}
+.card-content--markdown th,
+.card-content--markdown td {
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    padding: 3px 5px;
+    text-align: left;
+}
+.card-content--markdown th {
+    background: rgba(0, 0, 0, 0.06);
+}
+.card-md-img {
+    max-width: 100%;
+    height: auto;
+    vertical-align: middle;
+    border-radius: 2px;
+}
+.card-content--markdown input[type="checkbox"] {
+    margin-right: 0.35em;
+    vertical-align: middle;
 }
 .card.editing .card-content-block {
     display: none;
