@@ -8,6 +8,9 @@ interface BoardProps {
   currentAuthor: string;
   onEdit: (id: string, content: string, ruleIds?: string[]) => void;
   onDelete: (id: string) => void;
+  editLocks: Map<string, string>;
+  onRequestBeginEdit: (id: string) => Promise<boolean>;
+  onEndEdit: (id: string) => void;
 }
 
 function sortById(a: Note, b: Note): number {
@@ -27,6 +30,9 @@ export default function Board({
   currentAuthor,
   onEdit,
   onDelete,
+  editLocks,
+  onRequestBeginEdit,
+  onEndEdit,
 }: BoardProps) {
   const boardRef = useRef<HTMLElement>(null);
   const prevCountRef = useRef(0);
@@ -87,6 +93,9 @@ export default function Board({
       onEdit={onEdit}
       onDelete={onDelete}
       allRules={allRules}
+      editLockedBy={editLocks.get(note.id) ?? null}
+      onRequestBeginEdit={onRequestBeginEdit}
+      onEndEdit={onEndEdit}
     />
   );
 
@@ -147,6 +156,9 @@ export default function Board({
                                 onEdit={onEdit}
                                 onDelete={onDelete}
                                 allRules={allRules}
+                                editLockedBy={editLocks.get(ex.id) ?? null}
+                                onRequestBeginEdit={onRequestBeginEdit}
+                                onEndEdit={onEndEdit}
                               />
                             ))
                           )}

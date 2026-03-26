@@ -599,6 +599,43 @@ main {
   white-space: nowrap;
 }
 
+/* Compact delete control in header (replaces #id when user may delete) */
+.card-delete-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  min-height: 22px;
+  margin: -4px -2px -4px 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.42;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 3px;
+  transition:
+    opacity 0.12s,
+    background 0.12s,
+    color 0.12s;
+}
+.card-delete-x:hover {
+  opacity: 1;
+  background: rgba(160, 30, 30, 0.18);
+  color: #7f1d1d;
+}
+.card-delete-x:active {
+  transform: scale(0.92);
+}
+.card[data-type="Question"] .card-delete-x:hover {
+  background: rgba(255, 120, 120, 0.28);
+  color: #ffcdd2;
+}
+
 /* View mode */
 .card-content {
   font-size: 12.5px;
@@ -698,8 +735,7 @@ main {
 .card.editing .card-edit-area {
   display: flex;
 }
-.card.editing .edit-btn,
-.card.editing .delete-btn {
+.card.editing .edit-btn {
   display: none;
 }
 .card.editing .save-btn,
@@ -775,22 +811,6 @@ main {
 .card-btn:active {
   transform: scale(0.95);
 }
-.card-btn.delete-btn {
-  border-color: rgba(120, 20, 20, 0.6);
-  background: rgba(180, 40, 40, 0.22);
-}
-.card-btn.delete-btn:hover {
-  background: rgba(200, 50, 50, 0.42);
-}
-.card[data-type="Question"] .card-btn.delete-btn {
-  border-color: rgba(255, 180, 180, 0.5);
-  background: rgba(255, 100, 100, 0.2);
-  color: #ffebee;
-}
-.card[data-type="Question"] .card-btn.delete-btn:hover {
-  background: rgba(255, 100, 100, 0.38);
-}
-
 .save-btn,
 .cancel-btn {
   display: none;

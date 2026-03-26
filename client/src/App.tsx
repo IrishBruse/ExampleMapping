@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { Note, NoteType, AgentFilesPayload } from "./types";
 import { socket } from "./socket";
 import Header from "./components/Header";
@@ -16,6 +16,12 @@ export default function App() {
   const [agentPayload, setAgentPayload] = useState<AgentFilesPayload | null>(
     null,
   );
+  /** note id → display name of user currently editing */
+  const [editLocks, setEditLocks] = useState<Map<string, string>>(() => new Map());
+  const pendingBeginEdit = useRef<{
+    id: string;
+    resolve: (ok: boolean) => void;
+  } | null>(null);
 
   useEffect(() => {
     const onConnect = () => {
@@ -58,6 +64,35 @@ export default function App() {
       window.alert(message);
     };
 
+    const onInitEditLocks = (locks: Record<string, string>) => {
+      setEditLocks(new Map(Object.entries(locks)));
+    };
+
+    const onNoteEditLockChanged = (payload: {
+      noteId: string;
+      lockedBy: string | null;
+    }) => {
+      setEditLocks((prev) => {
+        const next = new Map(prev);
+        if (payload.lockedBy === null) next.delete(payload.noteId);
+        else next.set(payload.noteId, payload.lockedBy);
+        return next;
+      });
+    };
+
+    const onBeginEditResult = (payload: {
+      noteId: string;
+      ok: boolean;
+      message?: string;
+    }) => {
+      const pending = pendingBeginEdit.current;
+      if (pending && pending.id === payload.noteId) {
+        pendingBeginEdit.current = null;
+        if (payload.message && !payload.ok) window.alert(payload.message);
+        pending.resolve(payload.ok);
+      }
+    };
+
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("init_notes", onInitNotes);
@@ -68,6 +103,9 @@ export default function App() {
     socket.on("init_agent_files", onInitAgentFiles);
     socket.on("agent_files_updated", onAgentFilesUpdated);
     socket.on("note_error", onNoteError);
+    socket.on("init_edit_locks", onInitEditLocks);
+    socket.on("note_edit_lock_changed", onNoteEditLockChanged);
+    socket.on("begin_edit_result", onBeginEditResult);
 
     return () => {
       socket.off("connect", onConnect);
@@ -80,6 +118,9 @@ export default function App() {
       socket.off("init_agent_files", onInitAgentFiles);
       socket.off("agent_files_updated", onAgentFilesUpdated);
       socket.off("note_error", onNoteError);
+      socket.off("init_edit_locks", onInitEditLocks);
+      socket.off("note_edit_lock_changed", onNoteEditLockChanged);
+      socket.off("begin_edit_result", onBeginEditResult);
     };
   }, []);
 
@@ -112,6 +153,24 @@ export default function App() {
     },
     [],
   );
+
+  const requestBeginEdit = useCallback((id: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      pendingBeginEdit.current = { id, resolve };
+      socket.emit("begin_edit_note", { id });
+      window.setTimeout(() => {
+        const p = pendingBeginEdit.current;
+        if (p && p.id === id) {
+          pendingBeginEdit.current = null;
+          resolve(false);
+        }
+      }, 15000);
+    });
+  }, []);
+
+  const handleEndEdit = useCallback((id: string) => {
+    socket.emit("end_edit_note", { id });
+  }, []);
 
   const handlePost = useCallback(
     (
@@ -157,6 +216,9 @@ export default function App() {
         currentAuthor={currentAuthor}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        editLocks={editLocks}
+        onRequestBeginEdit={requestBeginEdit}
+        onEndEdit={handleEndEdit}
       />
     </>
   );

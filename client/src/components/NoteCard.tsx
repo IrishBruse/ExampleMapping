@@ -7,6 +7,10 @@ interface NoteCardProps {
   onEdit: (id: string, content: string, ruleIds?: string[]) => void;
   onDelete: (id: string) => void;
   allRules: Note[];
+  /** Display name of user editing this note, or null if nobody is */
+  editLockedBy: string | null;
+  onRequestBeginEdit: (id: string) => Promise<boolean>;
+  onEndEdit: (id: string) => void;
 }
 
 export default function NoteCard({
@@ -15,6 +19,9 @@ export default function NoteCard({
   onEdit,
   onDelete,
   allRules,
+  editLockedBy,
+  onRequestBeginEdit,
+  onEndEdit,
 }: NoteCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(note.content);
@@ -28,6 +35,12 @@ export default function NoteCard({
   const isAgentAuthor =
     note.author.trim().toLowerCase() === "agent";
   const canDelete = isOwner || note.isAi === true || isAgentAuthor;
+
+  const hasDisplayName = currentAuthor.trim().length > 0;
+  const lockedByOther =
+    editLockedBy !== null &&
+    editLockedBy.trim().toLowerCase() !==
+      currentAuthor.trim().toLowerCase();
 
   const [, num] = note.id.split("_");
 
@@ -54,6 +67,15 @@ export default function NoteCard({
     }
   }, [note.type, note.ruleIds, isEditing]);
 
+  const isEditingRef = useRef(isEditing);
+  isEditingRef.current = isEditing;
+
+  useEffect(() => {
+    return () => {
+      if (isEditingRef.current) onEndEdit(note.id);
+    };
+  }, [note.id, onEndEdit]);
+
   const toggleEditRule = (ruleId: string) => {
     setEditRuleIds((prev) => {
       const next = new Set(prev);
@@ -63,7 +85,9 @@ export default function NoteCard({
     });
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
+    const ok = await onRequestBeginEdit(note.id);
+    if (!ok) return;
     setEditContent(note.content);
     if (note.type === "Example") {
       setEditRuleIds(new Set(note.ruleIds ?? []));
@@ -72,6 +96,7 @@ export default function NoteCard({
   };
 
   const handleCancel = () => {
+    onEndEdit(note.id);
     setIsEditing(false);
     setEditContent(note.content);
     if (note.type === "Example") {
@@ -82,6 +107,7 @@ export default function NoteCard({
   const handleSave = () => {
     const trimmed = editContent.trim();
     if (!trimmed) {
+      onEndEdit(note.id);
       setIsEditing(false);
       return;
     }
@@ -97,12 +123,14 @@ export default function NoteCard({
         nextIds.length === prevIds.length &&
         nextIds.every((id, i) => id === prevIds[i]);
       if (contentSame && rulesSame) {
+        onEndEdit(note.id);
         setIsEditing(false);
         return;
       }
       onEdit(note.id, trimmed, nextIds);
     } else {
       if (contentSame) {
+        onEndEdit(note.id);
         setIsEditing(false);
         return;
       }
@@ -143,7 +171,21 @@ export default function NoteCard({
       )}
       <div className="card-header">
         <span className="card-type">{note.type.toUpperCase()}</span>
-        <span className="card-id">#{num}</span>
+        {isEditing ? (
+          <span className="card-id">#{num}</span>
+        ) : canDelete ? (
+          <button
+            type="button"
+            className="card-delete-x"
+            onClick={handleDelete}
+            aria-label="Delete this note"
+            title="Delete"
+          >
+            ×
+          </button>
+        ) : (
+          <span className="card-id">#{num}</span>
+        )}
       </div>
 
       <div className="card-content">{note.content}</div>
@@ -209,18 +251,21 @@ export default function NoteCard({
           {isOwner && <span className="owner-badge">you</span>}
         </div>
         <div className="card-actions">
-          {isOwner && !isEditing && (
-            <button type="button" className="card-btn edit-btn" onClick={handleEdit}>
-              Edit
-            </button>
-          )}
-          {canDelete && !isEditing && (
+          {!isEditing && (
             <button
               type="button"
-              className="card-btn delete-btn"
-              onClick={handleDelete}
+              className="card-btn edit-btn"
+              onClick={() => void handleEdit()}
+              disabled={!hasDisplayName || lockedByOther}
+              title={
+                !hasDisplayName
+                  ? "Set your display name in the sidebar to edit notes."
+                  : lockedByOther
+                    ? `${editLockedBy} is editing`
+                    : "Edit this note"
+              }
             >
-              Delete
+              Edit
             </button>
           )}
           {isEditing && (

@@ -208,10 +208,6 @@ if (!fs.existsSync(AGENT_DIR)) {
         console.warn(`Could not create agent directory ${AGENT_DIR}:`, e);
     }
 }
-if (fs.existsSync(AGENT_DIR)) {
-    fs.watch(AGENT_DIR, { recursive: true }, () => scheduleAgentRescan());
-    console.log(`Watching agent output: ${AGENT_DIR}`);
-}
 
 io.use((socket, next) => {
     if (!config.accessToken) return next();
@@ -466,6 +462,35 @@ function isNoteOwner(socketId: string, note: Note): boolean {
     );
 }
 
+/** note id → socket id — who holds the edit lock */
+const noteEditLocks = new Map<string, string>();
+
+function getSocketDisplayName(socketId: string): string {
+    return connectedUsers.get(socketId)?.trim() ?? "";
+}
+
+function broadcastLock(noteId: string, lockedBy: string | null): void {
+    io.emit("note_edit_lock_changed", { noteId, lockedBy });
+}
+
+function releaseLocksHeldBySocket(socketId: string): void {
+    for (const [noteId, holder] of noteEditLocks.entries()) {
+        if (holder === socketId) {
+            noteEditLocks.delete(noteId);
+            broadcastLock(noteId, null);
+        }
+    }
+}
+
+function buildEditLocksPayload(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const [noteId, sid] of noteEditLocks.entries()) {
+        const name = getSocketDisplayName(sid);
+        if (name) out[noteId] = name;
+    }
+    return out;
+}
+
 /** Notes stored under the agent user (Author: agent) — any client may delete; only agent can edit via owner check */
 function isAgentAuthorNote(note: Note): boolean {
     return note.author.trim().toLowerCase() === "agent";
@@ -529,6 +554,7 @@ io.on("connection", (socket) => {
     broadcastUsers();
 
     socket.emit("init_notes", [...noteIndex.values()]);
+    socket.emit("init_edit_locks", buildEditLocksPayload());
     socket.emit("init_agent_files", buildAgentPayload());
 
     socket.on("set_username", (name: string) => {
@@ -582,15 +608,62 @@ io.on("connection", (socket) => {
         io.emit("note_added", note);
     });
 
+    socket.on("begin_edit_note", ({ id }) => {
+        const note = noteIndex.get(id);
+        if (!note) {
+            socket.emit("begin_edit_result", {
+                noteId: id,
+                ok: false,
+                message: "Note not found.",
+            });
+            return;
+        }
+        const name = getSocketDisplayName(socket.id);
+        if (!name) {
+            socket.emit("begin_edit_result", {
+                noteId: id,
+                ok: false,
+                message: "Set your display name before editing.",
+            });
+            return;
+        }
+        const holder = noteEditLocks.get(id);
+        if (holder !== undefined && holder !== socket.id) {
+            const other = getSocketDisplayName(holder) || "Someone";
+            socket.emit("begin_edit_result", {
+                noteId: id,
+                ok: false,
+                message: `${other} is already editing this note.`,
+            });
+            return;
+        }
+        noteEditLocks.set(id, socket.id);
+        broadcastLock(id, name);
+        socket.emit("begin_edit_result", { noteId: id, ok: true });
+    });
+
+    socket.on("end_edit_note", ({ id }) => {
+        if (noteEditLocks.get(id) !== socket.id) return;
+        noteEditLocks.delete(id);
+        broadcastLock(id, null);
+    });
+
     socket.on("edit_note", ({ id, content, ruleIds }) => {
         const note = noteIndex.get(id);
         if (!note) {
             console.warn(`edit_note: unknown id "${id}"`);
             return;
         }
-        if (!isNoteOwner(socket.id, note)) {
+        const name = getSocketDisplayName(socket.id);
+        if (!name) {
             socket.emit("note_error", {
-                message: "You can only edit your own notes.",
+                message: "Set your display name before editing.",
+            });
+            return;
+        }
+        if (noteEditLocks.get(id) !== socket.id) {
+            socket.emit("note_error", {
+                message: "You no longer hold the edit lock for this note.",
             });
             return;
         }
@@ -627,6 +700,11 @@ io.on("connection", (socket) => {
             rebuildAllRuleFiles();
         }
 
+        if (noteEditLocks.get(id) === socket.id) {
+            noteEditLocks.delete(id);
+            broadcastLock(id, null);
+        }
+
         io.emit("note_updated", updated);
     });
 
@@ -660,6 +738,7 @@ io.on("connection", (socket) => {
 
     socket.on("disconnect", () => {
         console.log(`Client disconnected: ${socket.id}`);
+        releaseLocksHeldBySocket(socket.id);
         connectedUsers.delete(socket.id);
         broadcastUsers();
     });

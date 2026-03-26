@@ -41,6 +41,20 @@ export interface ServerToClientEvents {
   /** Validation failed for new_note or edit_note */
   note_error: (payload: { message: string }) => void;
 
+  /** Current note edit locks: note id → display name of the editor (for reconnect sync) */
+  init_edit_locks: (locks: Record<string, string>) => void;
+  /** A note's edit lock was taken or released (lockedBy null = unlocked) */
+  note_edit_lock_changed: (payload: {
+    noteId: string;
+    lockedBy: string | null;
+  }) => void;
+  /** Result of attempting to start an edit session (only sent to the requesting client) */
+  begin_edit_result: (payload: {
+    noteId: string;
+    ok: boolean;
+    message?: string;
+  }) => void;
+
   /** Initial snapshot of externally generated agent files (after init_notes) */
   init_agent_files: (payload: AgentFilesPayload) => void;
   /** Fired when files under the agent watch directory change */
@@ -79,13 +93,17 @@ export interface ClientToServerEvents {
     /** When true, sticky is styled as AI-generated */
     isAi?: boolean;
   }) => void;
-  /** Owner edits their own note */
+  /** Any user may edit if they hold the edit lock (see begin_edit_note) */
   edit_note: (payload: {
     id: string;
     content: string;
     /** When editing an Example, updates which rules it is linked to */
     ruleIds?: string[];
   }) => void;
+  /** Request exclusive edit access; server replies with begin_edit_result */
+  begin_edit_note: (payload: { id: string }) => void;
+  /** Release edit lock (cancel, or after local-only exit) */
+  end_edit_note: (payload: { id: string }) => void;
   /** Owner deletes their note */
   delete_note: (payload: { id: string }) => void;
   /** Client sets or updates their display name */
