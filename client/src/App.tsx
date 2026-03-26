@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import type { Note } from "./types";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import type { Note, NoteType } from "./types";
 import { socket } from "./socket";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
@@ -9,11 +9,17 @@ export default function App() {
   const [connected, setConnected] = useState(false);
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
   const [activeFilter, setActiveFilter] = useState<string>("All");
-  const [currentAuthor, setCurrentAuthor] = useState("");
+  const [currentAuthor, setCurrentAuthor] = useState(
+    () => localStorage.getItem("authorName") ?? ""
+  );
   const [connectedUsers, setConnectedUsers] = useState<string[]>([]);
 
   useEffect(() => {
-    const onConnect = () => setConnected(true);
+    const onConnect = () => {
+      setConnected(true);
+      const saved = localStorage.getItem("authorName");
+      if (saved) socket.emit("set_username", saved);
+    };
     const onDisconnect = () => setConnected(false);
 
     const onInitNotes = (existing: Note[]) => {
@@ -42,6 +48,10 @@ export default function App() {
 
     const onUsersChanged = (users: string[]) => setConnectedUsers(users);
 
+    const onNoteError = ({ message }: { message: string }) => {
+      window.alert(message);
+    };
+
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("init_notes", onInitNotes);
@@ -49,6 +59,7 @@ export default function App() {
     socket.on("note_updated", onNoteUpdated);
     socket.on("note_removed", onNoteRemoved);
     socket.on("users_changed", onUsersChanged);
+    socket.on("note_error", onNoteError);
 
     return () => {
       socket.off("connect", onConnect);
@@ -58,21 +69,53 @@ export default function App() {
       socket.off("note_updated", onNoteUpdated);
       socket.off("note_removed", onNoteRemoved);
       socket.off("users_changed", onUsersChanged);
+      socket.off("note_error", onNoteError);
     };
   }, []);
 
   const handleAuthorChange = useCallback((name: string) => {
     setCurrentAuthor(name);
+    localStorage.setItem("authorName", name);
     socket.emit("set_username", name);
   }, []);
 
-  const handleEdit = useCallback((id: string, content: string) => {
-    socket.emit("edit_note", { id, content });
-  }, []);
+  const ruleNotes = useMemo(
+    () =>
+      [...notes.values()]
+        .filter((n) => n.type === "Rule")
+        .sort((a, b) => {
+          const [, an] = a.id.split("_");
+          const [, bn] = b.id.split("_");
+          return parseInt(an, 10) - parseInt(bn, 10);
+        }),
+    [notes],
+  );
 
-  const handlePost = useCallback((author: string, type: string, content: string) => {
-    socket.emit("new_note", { author, type: type as any, content });
-  }, []);
+  const handleEdit = useCallback(
+    (id: string, content: string, ruleIds?: string[]) => {
+      const payload: { id: string; content: string; ruleIds?: string[] } = {
+        id,
+        content,
+      };
+      if (ruleIds !== undefined) payload.ruleIds = ruleIds;
+      socket.emit("edit_note", payload);
+    },
+    [],
+  );
+
+  const handlePost = useCallback(
+    (author: string, type: string, content: string, ruleIds?: string[]) => {
+      const payload: {
+        author: string;
+        type: NoteType;
+        content: string;
+        ruleIds?: string[];
+      } = { author, type: type as NoteType, content };
+      if (ruleIds !== undefined) payload.ruleIds = ruleIds;
+      socket.emit("new_note", payload);
+    },
+    [],
+  );
 
   return (
     <>
@@ -84,6 +127,7 @@ export default function App() {
         onFilterChange={setActiveFilter}
         onPost={handlePost}
         connectedUsers={connectedUsers}
+        rules={ruleNotes}
       />
       <Board
         notes={notes}

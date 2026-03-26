@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { NoteType } from "../types";
+import { useState, useEffect } from "react";
+import type { Note, NoteType } from "../types";
 
 const NOTE_TYPES: { type: NoteType; label: string }[] = [
   { type: "Story", label: "Story" },
@@ -15,8 +15,15 @@ interface SidebarProps {
   onAuthorChange: (author: string) => void;
   activeFilter: string;
   onFilterChange: (filter: string) => void;
-  onPost: (author: string, type: string, content: string) => void;
+  onPost: (
+    author: string,
+    type: string,
+    content: string,
+    ruleIds?: string[],
+  ) => void;
   connectedUsers: string[];
+  /** Rules available when posting an Example */
+  rules: Note[];
 }
 
 export default function Sidebar({
@@ -26,16 +33,40 @@ export default function Sidebar({
   onFilterChange,
   onPost,
   connectedUsers,
+  rules,
 }: SidebarProps) {
   const [selectedType, setSelectedType] = useState<NoteType>("Story");
   const [content, setContent] = useState("");
+  const [exampleRuleIds, setExampleRuleIds] = useState<Set<string>>(new Set());
 
-  const canPost = currentAuthor.trim().length > 0 && content.trim().length > 0;
+  useEffect(() => {
+    if (selectedType !== "Example") setExampleRuleIds(new Set());
+  }, [selectedType]);
+
+  const canPost =
+    currentAuthor.trim().length > 0 &&
+    content.trim().length > 0 &&
+    (selectedType !== "Example" ||
+      (rules.length > 0 && exampleRuleIds.size > 0));
+
+  const toggleExampleRule = (ruleId: string) => {
+    setExampleRuleIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(ruleId)) next.delete(ruleId);
+      else next.add(ruleId);
+      return next;
+    });
+  };
 
   const handlePost = () => {
     if (!canPost) return;
-    onPost(currentAuthor, selectedType, content.trim());
+    if (selectedType === "Example") {
+      onPost(currentAuthor, selectedType, content.trim(), [...exampleRuleIds]);
+    } else {
+      onPost(currentAuthor, selectedType, content.trim());
+    }
     setContent("");
+    setExampleRuleIds(new Set());
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -74,12 +105,50 @@ export default function Sidebar({
             </button>
           ))}
         </div>
+        <p className="type-hint">
+          <span className="type-hint-pair">Rule + Example</span> — pick which rules each example belongs to; one example can illustrate several rules.
+        </p>
       </div>
+
+      {selectedType === "Example" && (
+        <div className="example-rules-field">
+          <div className="field-label">Link to rules</div>
+          {rules.length === 0 ? (
+            <p className="example-rules-empty">Add at least one rule first, then choose it here.</p>
+          ) : (
+            <ul className="example-rules-list" role="group" aria-label="Rules this example illustrates">
+              {rules.map((r) => {
+                const [, num] = r.id.split("_");
+                const checked = exampleRuleIds.has(r.id);
+                return (
+                  <li key={r.id}>
+                    <label className="example-rule-option">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleExampleRule(r.id)}
+                      />
+                      <span className="example-rule-id">#{num}</span>
+                      <span className="example-rule-preview">{r.content}</span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {selectedType === "Example" && rules.length > 0 && exampleRuleIds.size === 0 && (
+            <p className="example-rules-required" role="status">
+              Select at least one rule to post this example.
+            </p>
+          )}
+        </div>
+      )}
 
       <div>
         <div className="field-label">Content</div>
         <textarea
           id="content-input"
+          className="compose-textarea"
           placeholder="Type your note… (Ctrl+Enter to post)"
           maxLength={600}
           value={content}

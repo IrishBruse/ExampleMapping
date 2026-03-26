@@ -153,15 +153,128 @@ function absPath(relPath: string): string {
 }
 
 function buildMarkdown(note: Note): string {
+    const rulesFm =
+        note.type === "Example"
+            ? `Rules: ${(note.ruleIds ?? []).join(", ")}\n`
+            : "";
     return `---
 Author: ${note.author}
 Type: ${note.type}
 ID: ${note.id}
 Time: ${note.timestamp}
----
+${rulesFm}---
 # ${note.type}
 ${note.content}
 `;
+}
+
+function parseRulesLine(raw: string): string[] | undefined {
+    const line = raw.match(/^Rules:\s*(.*)$/m)?.[1];
+    if (line === undefined) return undefined;
+    return line
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+}
+
+function filterToExistingRuleIds(ids: string[]): string[] {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const id of ids) {
+        const n = noteIndex.get(id);
+        if (n?.type === "Rule" && !seen.has(id)) {
+            seen.add(id);
+            out.push(id);
+        }
+    }
+    return out;
+}
+
+/** Drop stale rule IDs after the index is built (e.g. deleted rules). */
+function normalizeExampleRuleLinks(): void {
+    const ruleIdSet = new Set(
+        [...noteIndex.values()]
+            .filter((n) => n.type === "Rule")
+            .map((n) => n.id),
+    );
+    for (const n of noteIndex.values()) {
+        if (n.type !== "Example" || n.ruleIds === undefined) continue;
+        const next = n.ruleIds.filter((id) => ruleIdSet.has(id));
+        if (next.length !== n.ruleIds.length) {
+            n.ruleIds = next;
+            fs.writeFileSync(absPath(n.relPath), buildMarkdown(n), "utf-8");
+        }
+    }
+}
+
+/** Old Example files had no Rules line — treat as illustrating every rule, then persist. */
+function migrateLegacyExampleFiles(): void {
+    const allRuleIds = [...noteIndex.values()]
+        .filter((n) => n.type === "Rule")
+        .map((n) => n.id);
+    for (const n of noteIndex.values()) {
+        if (n.type !== "Example" || n.ruleIds !== undefined) continue;
+        n.ruleIds = [...allRuleIds];
+        fs.writeFileSync(absPath(n.relPath), buildMarkdown(n), "utf-8");
+    }
+}
+
+function examplesForRule(ruleId: string): Note[] {
+    return [...noteIndex.values()]
+        .filter(
+            (n) => n.type === "Example" && (n.ruleIds ?? []).includes(ruleId),
+        )
+        .sort(
+            (a, b) =>
+                parseInt(a.id.split("_")[1], 10) -
+                parseInt(b.id.split("_")[1], 10),
+        );
+}
+
+/** Rule files store generated "## Examples" on disk; strip so we never duplicate on rebuild. */
+function stripRuleExamplesSectionFromBody(body: string): string {
+    return body.replace(/\r?\n## Examples[\s\S]*$/u, "").trimEnd();
+}
+
+function buildRuleMarkdownWithExamples(rule: Note, examples: Note[]): string {
+    const examplesSection =
+        examples.length === 0
+            ? "\n_No examples yet._\n"
+            : "\n" +
+              examples
+                  .map(
+                      (ex) =>
+                          `- **[${ex.id}]** ${ex.content}  _(${ex.author})_`,
+                  )
+                  .join("\n") +
+              "\n";
+
+    const ruleBody = stripRuleExamplesSectionFromBody(rule.content);
+
+    return `---
+Author: ${rule.author}
+Type: ${rule.type}
+ID: ${rule.id}
+Time: ${rule.timestamp}
+---
+# Rule
+${ruleBody}
+
+## Examples
+${examplesSection}`;
+}
+
+/** Re-write every Rule file on disk with examples that list that rule in ruleIds. */
+function rebuildAllRuleFiles(): void {
+    const rules = [...noteIndex.values()].filter((n) => n.type === "Rule");
+
+    for (const rule of rules) {
+        const md = buildRuleMarkdownWithExamples(
+            rule,
+            examplesForRule(rule.id),
+        );
+        fs.writeFileSync(absPath(rule.relPath), md, "utf-8");
+    }
 }
 
 function parseNoteFile(relPath: string): Note | null {
@@ -173,9 +286,24 @@ function parseNoteFile(relPath: string): Note | null {
             | undefined;
         const id = raw.match(/^ID:\s*(.+)$/m)?.[1]?.trim();
         const time = raw.match(/^Time:\s*(.+)$/m)?.[1]?.trim();
-        const content = raw.match(/^#\s*.+\n([\s\S]+)$/m)?.[1]?.trim();
+        let content = raw.match(/^#\s*.+\n([\s\S]+)$/m)?.[1]?.trim();
         if (!author || !type || !id || !time || !content) return null;
-        return { id, author, type, content, timestamp: time, relPath };
+        if (type === "Rule") {
+            content = stripRuleExamplesSectionFromBody(content);
+        }
+        const parsedRules = parseRulesLine(raw);
+        const note: Note = {
+            id,
+            author,
+            type,
+            content,
+            timestamp: time,
+            relPath,
+        };
+        if (type === "Example" && parsedRules !== undefined) {
+            note.ruleIds = parsedRules;
+        }
+        return note;
     } catch {
         return null;
     }
@@ -208,6 +336,9 @@ scanCounters();
 // In-memory index so edit_note can find notes without a disk scan
 const noteIndex = new Map<string, Note>();
 loadAllNotes().forEach((n) => noteIndex.set(n.id, n));
+migrateLegacyExampleFiles();
+normalizeExampleRuleLinks();
+rebuildAllRuleFiles();
 
 // ─── Connected users ──────────────────────────────────────────────────────────
 // Maps socket.id → display name (empty string until set_username is received)
@@ -235,7 +366,20 @@ io.on("connection", (socket) => {
         broadcastUsers();
     });
 
-    socket.on("new_note", ({ author, type, content }) => {
+    socket.on("new_note", ({ author, type, content, ruleIds }) => {
+        let resolvedExampleRuleIds: string[] | undefined;
+        if (type === "Example") {
+            const raw = Array.isArray(ruleIds) ? ruleIds : [];
+            resolvedExampleRuleIds = filterToExistingRuleIds(raw);
+            if (resolvedExampleRuleIds.length === 0) {
+                socket.emit("note_error", {
+                    message:
+                        "Link the example to at least one rule before posting.",
+                });
+                return;
+            }
+        }
+
         const id = nextId(type);
         const timestamp = new Date().toISOString();
         const userDir = safeUsername(author);
@@ -245,28 +389,72 @@ io.on("connection", (socket) => {
         if (!fs.existsSync(userAbsDir))
             fs.mkdirSync(userAbsDir, { recursive: true });
 
-        const note: Note = { id, author, type, content, timestamp, relPath };
-        fs.writeFileSync(absPath(relPath), buildMarkdown(note), "utf-8");
+        let note: Note = { id, author, type, content, timestamp, relPath };
+        if (type === "Example" && resolvedExampleRuleIds) {
+            note = { ...note, ruleIds: resolvedExampleRuleIds };
+        }
+        noteIndex.set(id, note);
+
+        if (type === "Rule") {
+            fs.writeFileSync(
+                absPath(relPath),
+                buildRuleMarkdownWithExamples(note, examplesForRule(note.id)),
+                "utf-8",
+            );
+        } else {
+            fs.writeFileSync(absPath(relPath), buildMarkdown(note), "utf-8");
+        }
         console.log(`Saved: context_files/${relPath}`);
 
-        noteIndex.set(id, note);
+        if (type === "Example") {
+            rebuildAllRuleFiles();
+        }
+
         io.emit("note_added", note);
     });
 
-    socket.on("edit_note", ({ id, content }) => {
+    socket.on("edit_note", ({ id, content, ruleIds }) => {
         const note = noteIndex.get(id);
         if (!note) {
             console.warn(`edit_note: unknown id "${id}"`);
             return;
         }
-        const updated: Note = { ...note, content };
-        fs.writeFileSync(
-            absPath(updated.relPath),
-            buildMarkdown(updated),
-            "utf-8",
-        );
-        console.log(`Updated: context_files/${updated.relPath}`);
+        let updated: Note = { ...note, content };
+        if (updated.type === "Example" && ruleIds !== undefined) {
+            const nextRuleIds = filterToExistingRuleIds(ruleIds);
+            if (nextRuleIds.length === 0) {
+                socket.emit("note_error", {
+                    message:
+                        "An example must stay linked to at least one rule.",
+                });
+                return;
+            }
+            updated = { ...updated, ruleIds: nextRuleIds };
+        }
         noteIndex.set(id, updated);
+
+        if (updated.type === "Rule") {
+            fs.writeFileSync(
+                absPath(updated.relPath),
+                buildRuleMarkdownWithExamples(
+                    updated,
+                    examplesForRule(updated.id),
+                ),
+                "utf-8",
+            );
+        } else {
+            fs.writeFileSync(
+                absPath(updated.relPath),
+                buildMarkdown(updated),
+                "utf-8",
+            );
+        }
+        console.log(`Updated: context_files/${updated.relPath}`);
+
+        if (updated.type === "Example") {
+            rebuildAllRuleFiles();
+        }
+
         io.emit("note_updated", updated);
     });
 
@@ -288,9 +476,11 @@ fs.watch(CONTEXT_DIR, { recursive: true }, (eventType, filename) => {
     ) {
         for (const [id, note] of noteIndex.entries()) {
             if (note.relPath === relPath) {
+                const wasExample = note.type === "Example";
                 noteIndex.delete(id);
                 console.log(`Removed: context_files/${relPath}`);
                 io.emit("note_removed", id);
+                if (wasExample) rebuildAllRuleFiles();
                 break;
             }
         }

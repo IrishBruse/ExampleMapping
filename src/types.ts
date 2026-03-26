@@ -11,6 +11,11 @@ export interface Note {
   timestamp: string; // ISO 8601 — stored in frontmatter only, not in filename
   /** Relative path inside context_files/, e.g. "alice/Story_4.md" */
   relPath: string;
+  /**
+   * For Example notes only: which rules this example illustrates.
+   * Omitted on other types. Persisted in frontmatter as `Rules: Rule_1, Rule_2`.
+   */
+  ruleIds?: string[];
 }
 
 /** Per-type counters tracked by the server */
@@ -28,6 +33,8 @@ export interface ServerToClientEvents {
   note_removed: (id: string) => void;
   /** Broadcast whenever the set of connected users changes */
   users_changed: (users: string[]) => void;
+  /** Validation failed for new_note or edit_note */
+  note_error: (payload: { message: string }) => void;
 }
 
 export interface ClientToServerEvents {
@@ -36,9 +43,16 @@ export interface ClientToServerEvents {
     author: string;
     type: NoteType;
     content: string;
+    /** Required when type is Example: at least one rule id */
+    ruleIds?: string[];
   }) => void;
   /** Owner edits their own note */
-  edit_note: (payload: { id: string; content: string }) => void;
+  edit_note: (payload: {
+    id: string;
+    content: string;
+    /** When editing an Example, updates which rules it is linked to */
+    ruleIds?: string[];
+  }) => void;
   /** Client sets or updates their display name */
   set_username: (name: string) => void;
 }

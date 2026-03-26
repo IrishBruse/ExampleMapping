@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import type { Note } from "../types";
 import NoteCard from "./NoteCard";
 
@@ -6,7 +6,14 @@ interface BoardProps {
   notes: Map<string, Note>;
   activeFilter: string;
   currentAuthor: string;
-  onEdit: (id: string, content: string) => void;
+  onEdit: (id: string, content: string, ruleIds?: string[]) => void;
+}
+
+function sortById(a: Note, b: Note): number {
+  const [aT, aN] = a.id.split("_");
+  const [bT, bN] = b.id.split("_");
+  if (aT !== bT) return aT.localeCompare(bT);
+  return parseInt(aN, 10) - parseInt(bN, 10);
 }
 
 export default function Board({
@@ -18,38 +25,137 @@ export default function Board({
   const boardRef = useRef<HTMLElement>(null);
   const prevCountRef = useRef(0);
 
-  const visible = [...notes.values()]
-    .filter((n) => activeFilter === "All" || n.type === activeFilter)
-    .sort((a, b) => {
-      const [aT, aN] = a.id.split("_");
-      const [bT, bN] = b.id.split("_");
-      if (aT !== bT) return aT.localeCompare(bT);
-      return parseInt(aN) - parseInt(bN);
-    });
+  const visible = useMemo(
+    () =>
+      [...notes.values()].filter(
+        (n) => activeFilter === "All" || n.type === activeFilter,
+      ),
+    [notes, activeFilter],
+  );
+
+  const stories = useMemo(
+    () => visible.filter((n) => n.type === "Story").sort(sortById),
+    [visible],
+  );
+  const rules = useMemo(
+    () => visible.filter((n) => n.type === "Rule").sort(sortById),
+    [visible],
+  );
+  const examples = useMemo(
+    () => visible.filter((n) => n.type === "Example").sort(sortById),
+    [visible],
+  );
+  const questions = useMemo(
+    () => visible.filter((n) => n.type === "Question").sort(sortById),
+    [visible],
+  );
+
+  const allRules = useMemo(
+    () => [...notes.values()].filter((n) => n.type === "Rule").sort(sortById),
+    [notes],
+  );
+
+  const useGroupedLayout =
+    activeFilter === "All" &&
+    (stories.length > 0 ||
+      rules.length > 0 ||
+      examples.length > 0 ||
+      questions.length > 0);
+
+  const totalVisible = visible.length;
 
   useEffect(() => {
-    if (visible.length > prevCountRef.current && boardRef.current) {
-      const lastCard = boardRef.current.lastElementChild;
+    if (totalVisible > prevCountRef.current && boardRef.current) {
+      const lastCard = boardRef.current.querySelector(".card:last-of-type");
       if (lastCard) {
         lastCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
     }
-    prevCountRef.current = visible.length;
-  }, [visible.length]);
+    prevCountRef.current = totalVisible;
+  }, [totalVisible]);
+
+  const renderCard = (note: Note) => (
+    <NoteCard
+      key={note.id}
+      note={note}
+      currentAuthor={currentAuthor}
+      onEdit={onEdit}
+      allRules={allRules}
+    />
+  );
+
+  const examplesLinkedToRule = (ruleId: string) =>
+    examples.filter((ex) => (ex.ruleIds ?? []).includes(ruleId));
 
   return (
     <main id="board" ref={boardRef}>
-      {visible.length === 0 ? (
+      {totalVisible === 0 ? (
         <div id="empty-msg">No notes yet — post the first one ↗</div>
+      ) : useGroupedLayout ? (
+        <>
+          {stories.length > 0 && (
+            <section className="board-section board-section--story" aria-label="Stories">
+              <h2 className="board-section-title">Story</h2>
+              <div className="board-section-cards">{stories.map(renderCard)}</div>
+            </section>
+          )}
+          {(rules.length > 0 || examples.length > 0) && (
+            <section
+              className="board-section board-section--rule-example"
+              aria-label="Rules and examples"
+            >
+              <h2 className="board-section-title board-section-title--rule-example">
+                Rules &amp; examples
+              </h2>
+              {rules.length === 0 ? (
+                <div className="board-rule-rows board-rule-rows--examples-only">
+                  <p className="board-column-empty board-column-empty--block">
+                    No rules yet — add a rule, then link examples to it.
+                  </p>
+                  {examples.length > 0 && (
+                    <div className="board-section-cards">{examples.map(renderCard)}</div>
+                  )}
+                </div>
+              ) : (
+                <div className="board-rule-rows">
+                  {rules.map((rule) => {
+                    const rowExamples = examplesLinkedToRule(rule.id);
+                    return (
+                      <div key={rule.id} className="board-rule-row" aria-label={`Rule ${rule.id}`}>
+                        <div className="board-rule-row__rule">{renderCard(rule)}</div>
+                        <div className="board-rule-row__examples">
+                          {rowExamples.length === 0 ? (
+                            <p className="board-rule-row__empty">
+                              No example linked to this rule yet.
+                            </p>
+                          ) : (
+                            rowExamples.map((ex) => (
+                              <NoteCard
+                                key={`${rule.id}-${ex.id}`}
+                                note={ex}
+                                currentAuthor={currentAuthor}
+                                onEdit={onEdit}
+                                allRules={allRules}
+                              />
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          )}
+          {questions.length > 0 && (
+            <section className="board-section board-section--question" aria-label="Questions">
+              <h2 className="board-section-title">Questions</h2>
+              <div className="board-section-cards">{questions.map(renderCard)}</div>
+            </section>
+          )}
+        </>
       ) : (
-        visible.map((note) => (
-          <NoteCard
-            key={note.id}
-            note={note}
-            currentAuthor={currentAuthor}
-            onEdit={onEdit}
-          />
-        ))
+        [...visible].sort(sortById).map(renderCard)
       )}
     </main>
   );
