@@ -9,6 +9,7 @@ import type {
     Note,
     NoteType,
     TypeCounters,
+    ConnectedUserEntry,
     ServerToClientEvents,
     ClientToServerEvents,
     AgentFileEntry,
@@ -38,6 +39,11 @@ function loadConfig(): {
 const config = loadConfig();
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 const CONTEXT_DIR = path.resolve(PROJECT_ROOT, config.outputDir);
+
+console.log(`[notes] CONTEXT_DIR (absolute): ${CONTEXT_DIR}`);
+console.log("http://localhost:3000/?token=" + config.accessToken);
+console.log();
+console.log();
 
 /** AI-generated files always live under `<outputDir>/agent/` (author folder name is always `agent`). */
 const AGENT_DIR = path.join(CONTEXT_DIR, "agent");
@@ -135,7 +141,13 @@ function buildAgentPayload(): AgentFilesPayload {
     };
 }
 
-const NOTE_TYPES: NoteType[] = ["Story", "Rule", "Example", "Question", "Feature"];
+const NOTE_TYPES: NoteType[] = [
+    "Story",
+    "Rule",
+    "Example",
+    "Question",
+    "Feature",
+];
 
 if (!fs.existsSync(CONTEXT_DIR)) {
     fs.mkdirSync(CONTEXT_DIR, { recursive: true });
@@ -218,6 +230,9 @@ io.use((socket, next) => {
     if (!config.accessToken) return next();
     const token = socket.handshake.auth?.token as string | undefined;
     if (token === config.accessToken) return next();
+    console.warn(
+        `[socket] auth rejected (invalid or missing token in handshake) socket=${socket.id}`,
+    );
     next(new Error("Unauthorized"));
 });
 
@@ -420,62 +435,131 @@ function rebuildAllRuleFiles(): void {
     }
 }
 
-function parseNoteFile(relPath: string): Note | null {
+type ParseNoteResult =
+    | { ok: true; note: Note }
+    | { ok: false; reason: string };
+
+/** Parse a single note file; use {@link parseNoteFile} if you only need the note or null. */
+function parseNoteFileResult(relPath: string): ParseNoteResult {
     try {
         const raw = fs.readFileSync(absPath(relPath), "utf-8");
         const split = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
-        if (!split) return null;
+        if (!split) {
+            return {
+                ok: false,
+                reason:
+                    "no YAML frontmatter (expected --- then --- then body); file may be raw markdown without metadata",
+            };
+        }
         const fmBlock = split[1];
         const afterFm = split[2];
         const author = fmBlock.match(/^Author:\s*(.+)$/m)?.[1]?.trim();
-        const type = fmBlock.match(/^Type:\s*(.+)$/m)?.[1]?.trim() as
-            | NoteType
-            | undefined;
+        const typeRaw = fmBlock.match(/^Type:\s*(.+)$/m)?.[1]?.trim();
         const id = fmBlock.match(/^ID:\s*(.+)$/m)?.[1]?.trim();
         const time = fmBlock.match(/^Time:\s*(.+)$/m)?.[1]?.trim();
         const sourceRaw = fmBlock
             .match(/^Source:\s*(.+)$/m)?.[1]
             ?.trim()
             .toLowerCase();
-        if (!author || !type || !id || !time || !NOTE_TYPES.includes(type)) {
-            return null;
+
+        const missing: string[] = [];
+        if (!author) missing.push("Author");
+        if (!typeRaw) missing.push("Type");
+        if (!id) missing.push("ID");
+        if (!time) missing.push("Time");
+        if (missing.length > 0) {
+            return {
+                ok: false,
+                reason: `frontmatter missing: ${missing.join(", ")}`,
+            };
         }
+        if (!NOTE_TYPES.includes(typeRaw as NoteType)) {
+            return {
+                ok: false,
+                reason: `invalid Type "${typeRaw}" (must be one of ${NOTE_TYPES.join(", ")})`,
+            };
+        }
+        const noteType = typeRaw as NoteType;
 
         let content: string;
-        if (type === "Feature") {
+        if (noteType === "Feature") {
             content = afterFm.replace(/\s+$/, "");
         } else {
             const bodyMatch = afterFm.match(/^#\s*.+\n([\s\S]+)/m);
-            content = bodyMatch?.[1]?.trim() ?? "";
-            if (!content) return null;
-            if (type === "Rule") {
+            if (!bodyMatch) {
+                return {
+                    ok: false,
+                    reason:
+                        "body must start with a markdown H1 line (# …) followed by a newline, then note text (parser is strict)",
+                };
+            }
+            content = bodyMatch[1]?.trim() ?? "";
+            if (!content) {
+                return {
+                    ok: false,
+                    reason: "no text after the # title line",
+                };
+            }
+            if (noteType === "Rule") {
                 content = stripRuleExamplesSectionFromBody(content);
             }
         }
-        if (!content) return null;
+        if (!content) {
+            return {
+                ok: false,
+                reason: "note body is empty",
+            };
+        }
 
         const parsedRules = parseRulesLine(fmBlock);
         const note: Note = {
-            id,
-            author,
-            type,
+            id: id!,
+            author: author!,
+            type: noteType,
             content,
-            timestamp: time,
+            timestamp: time!,
             relPath,
         };
         if (sourceRaw === "ai") {
             note.isAi = true;
         }
-        if (type === "Example" && parsedRules !== undefined) {
+        if (noteType === "Example" && parsedRules !== undefined) {
             note.ruleIds = parsedRules;
         }
-        return note;
-    } catch {
-        return null;
+        return { ok: true, note };
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { ok: false, reason: `read/parse error: ${msg}` };
     }
 }
 
-function loadAllNotes(): Note[] {
+function parseNoteFile(relPath: string): Note | null {
+    const r = parseNoteFileResult(relPath);
+    return r.ok ? r.note : null;
+}
+
+function warnIgnoredRootMarkdownFiles(): void {
+    if (!fs.existsSync(CONTEXT_DIR)) return;
+    const rootFiles = fs
+        .readdirSync(CONTEXT_DIR)
+        .filter((f) => f.endsWith(".md") || f.endsWith(".feature"));
+    if (rootFiles.length === 0) return;
+    const sample = rootFiles.slice(0, 15).join(", ");
+    const more =
+        rootFiles.length > 15 ? ` (and ${rootFiles.length - 15} more)` : "";
+    console.warn(
+        `[notes] ${rootFiles.length} file(s) in CONTEXT_DIR root are NOT loaded — put each note in a user subfolder, e.g. ${path.join(
+            CONTEXT_DIR,
+            "you",
+            "Story_1.md",
+        )}. Found: ${sample}${more}`,
+    );
+}
+
+function loadAllNotes(options?: { logSkipped?: boolean }): Note[] {
+    const logSkipped =
+        options?.logSkipped === true ||
+        process.env.MAPPING_LOG_SKIPPED_NOTES === "1";
     const notes: Note[] = [];
     if (!fs.existsSync(CONTEXT_DIR)) return notes;
     for (const entry of fs.readdirSync(CONTEXT_DIR, { withFileTypes: true })) {
@@ -483,8 +567,13 @@ function loadAllNotes(): Note[] {
         const userDir = path.join(CONTEXT_DIR, entry.name);
         for (const file of fs.readdirSync(userDir)) {
             if (!file.endsWith(".md") && !file.endsWith(".feature")) continue;
-            const note = parseNoteFile(`${entry.name}/${file}`);
-            if (note) notes.push(note);
+            const rel = `${entry.name}/${file}`;
+            const r = parseNoteFileResult(rel);
+            if (r.ok) {
+                notes.push(r.note);
+            } else if (logSkipped) {
+                console.warn(`[notes] skipped ${rel}: ${r.reason}`);
+            }
         }
     }
     return notes.sort((a, b) => {
@@ -501,10 +590,27 @@ scanCounters();
 
 // In-memory index so edit_note can find notes without a disk scan
 const noteIndex = new Map<string, Note>();
-loadAllNotes().forEach((n) => noteIndex.set(n.id, n));
+loadAllNotes({ logSkipped: true }).forEach((n) => noteIndex.set(n.id, n));
 migrateLegacyExampleFiles();
 normalizeExampleRuleLinks();
 rebuildAllRuleFiles();
+
+function logNoteIndexSummary(context: string): void {
+    const byType: Partial<Record<NoteType, number>> = {};
+    for (const n of noteIndex.values()) {
+        byType[n.type] = (byType[n.type] ?? 0) + 1;
+    }
+    console.log(
+        `[notes] ${context}: ${noteIndex.size} notes in index`,
+        Object.keys(byType).length > 0 ? byType : "(empty)",
+    );
+}
+
+logNoteIndexSummary("after load + migrations");
+warnIgnoredRootMarkdownFiles();
+console.log(
+    `[notes] Tip: set MAPPING_LOG_SKIPPED_NOTES=1 to log parse skips on each disk resync`,
+);
 
 // ─── Connected users ──────────────────────────────────────────────────────────
 // Maps socket.id → display name (empty string until set_username is received)
@@ -512,17 +618,18 @@ rebuildAllRuleFiles();
 const connectedUsers = new Map<string, string>();
 
 function broadcastUsers(): void {
-    const names = [...connectedUsers.values()].filter(
-        (n) => n.trim().length > 0,
+    const users: ConnectedUserEntry[] = [...connectedUsers.entries()].map(
+        ([socketId, name]) => ({
+            socketId,
+            displayName: name.trim(),
+        }),
     );
-    io.emit("users_changed", names);
+    io.emit("users_changed", users);
 }
 
 function isNoteOwner(socketId: string, note: Note): boolean {
     const name = connectedUsers.get(socketId)?.trim().toLowerCase() ?? "";
-    return (
-        name.length > 0 && name === note.author.trim().toLowerCase()
-    );
+    return name.length > 0 && name === note.author.trim().toLowerCase();
 }
 
 /** note id → socket id — who holds the edit lock */
@@ -694,7 +801,7 @@ function scheduleContextDirEffects(): void {
             io.emit("agent_files_updated", buildAgentPayload());
             fullResyncNotesFromDisk();
         } catch (e) {
-            console.warn("context dir watch handler:", e);
+            console.error("[notes] context dir watch / resync error:", e);
         }
     }, 350);
 }
@@ -702,13 +809,15 @@ function scheduleContextDirEffects(): void {
 // ─── Socket Events ────────────────────────────────────────────────────────────
 
 io.on("connection", (socket) => {
-    console.log(
-        `[${new Date().toISOString()}] Client connected: ${socket.id}`,
-    );
+    console.log(`[${new Date().toISOString()}] Client connected: ${socket.id}`);
     connectedUsers.set(socket.id, "");
     broadcastUsers();
 
-    socket.emit("init_notes", [...noteIndex.values()]);
+    const snapshot = [...noteIndex.values()];
+    socket.emit("init_notes", snapshot);
+    console.log(
+        `[notes] init_notes → socket ${socket.id} (${snapshot.length} notes)`,
+    );
     socket.emit("init_edit_locks", buildEditLocksPayload());
     socket.emit("init_agent_files", buildAgentPayload());
 
@@ -737,7 +846,8 @@ io.on("connection", (socket) => {
         }
         if (!abs.toLowerCase().endsWith(".feature")) {
             socket.emit("note_error", {
-                message: "Only .feature files can be saved from the agent panel.",
+                message:
+                    "Only .feature files can be saved from the agent panel.",
             });
             return;
         }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type { Note, NoteType, AgentFilesPayload } from "./types";
+import type { Note, NoteType, AgentFilesPayload, ConnectedUserEntry } from "./types";
 import { socket } from "./socket";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
@@ -12,7 +12,7 @@ export default function App() {
   const [currentAuthor, setCurrentAuthor] = useState(
     () => localStorage.getItem("authorName") ?? ""
   );
-  const [connectedUsers, setConnectedUsers] = useState<string[]>([]);
+  const [connectedUsers, setConnectedUsers] = useState<ConnectedUserEntry[]>([]);
   /** note id → display name of user currently editing */
   const [editLocks, setEditLocks] = useState<Map<string, string>>(() => new Map());
   const pendingBeginEdit = useRef<{
@@ -32,13 +32,29 @@ export default function App() {
 
   useEffect(() => {
     const onConnect = () => {
+      console.log("[mapping] socket connected", { id: socket.id });
       setConnected(true);
       const saved = localStorage.getItem("authorName");
       if (saved) socket.emit("set_username", saved);
     };
-    const onDisconnect = () => setConnected(false);
+    const onDisconnect = (reason: string) => {
+      console.warn("[mapping] socket disconnected:", reason);
+      setConnected(false);
+    };
+
+    const onConnectError = (err: Error) => {
+      console.error("[mapping] socket connect_error:", err.message);
+    };
 
     const onInitNotes = (existing: Note[]) => {
+      const byType = existing.reduce<Record<string, number>>((acc, n) => {
+        acc[n.type] = (acc[n.type] ?? 0) + 1;
+        return acc;
+      }, {});
+      console.log(
+        `[mapping] init_notes: ${existing.length} notes`,
+        byType,
+      );
       setNotes((prev) => {
         const next = new Map(prev);
         existing.forEach((n) => next.set(n.id, n));
@@ -62,9 +78,11 @@ export default function App() {
       });
     };
 
-    const onUsersChanged = (users: string[]) => setConnectedUsers(users);
+    const onUsersChanged = (users: ConnectedUserEntry[]) =>
+      setConnectedUsers(users);
 
     const onNoteError = ({ message }: { message: string }) => {
+      console.error("[mapping] note_error:", message);
       window.alert(message);
     };
 
@@ -106,6 +124,7 @@ export default function App() {
 
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
+    socket.on("connect_error", onConnectError);
     socket.on("init_notes", onInitNotes);
     socket.on("note_added", onNoteAdded);
     socket.on("note_updated", onNoteUpdated);
@@ -121,6 +140,7 @@ export default function App() {
     return () => {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
+      socket.off("connect_error", onConnectError);
       socket.off("init_notes", onInitNotes);
       socket.off("note_added", onNoteAdded);
       socket.off("note_updated", onNoteUpdated);

@@ -22,7 +22,6 @@ show_share_link() {
   echo ""
   if [ -n "$ACCESS_TOKEN" ]; then
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  Share this link with your teammates (Netskope required):"
     echo "  ${base_url}/?token=${ACCESS_TOKEN}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   else

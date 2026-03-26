@@ -1,6 +1,7 @@
 import type {
   Note,
   NoteType,
+  ConnectedUserEntry,
   ServerToClientEvents,
   ClientToServerEvents,
   AgentFileEntry,
@@ -10,6 +11,7 @@ import type {
 export type {
   Note,
   NoteType,
+  ConnectedUserEntry,
   ServerToClientEvents,
   ClientToServerEvents,
   AgentFileEntry,

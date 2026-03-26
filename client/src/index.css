@@ -1144,6 +1144,11 @@ main {
     color: var(--accent);
 }
 
+.user-list-item--unnamed .user-list-label {
+    font-style: italic;
+    opacity: 0.72;
+}
+
 .user-dot {
     width: 6px;
     height: 6px;
