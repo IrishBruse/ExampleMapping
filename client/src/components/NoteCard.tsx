@@ -1,9 +1,17 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+  useId,
+} from "react";
 import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import type { Note } from "../types";
+import { mergeQuestionContent, splitQuestionContent } from "../questionContent";
 
 const MARKDOWN_COMPONENTS = {
   a: (props: React.ComponentProps<"a">) => (
@@ -44,12 +52,17 @@ export default function NoteCard({
 }: NoteCardProps) {
   const [readerOpen, setReaderOpen] = useState(false);
   const expandBtnRef = useRef<HTMLButtonElement>(null);
+  const answerBtnRef = useRef<HTMLButtonElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(note.content);
+  /** Question cards: only the answer section (below the marker) while editing */
+  const [answerDraft, setAnswerDraft] = useState("");
   const [editRuleIds, setEditRuleIds] = useState<Set<string>>(
     () => new Set(note.type === "Example" ? note.ruleIds ?? [] : []),
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const questionAnswerRef = useRef<HTMLTextAreaElement>(null);
+  const answerFieldId = useId();
 
   const isOwner =
     note.author.trim().toLowerCase() === currentAuthor.trim().toLowerCase();
@@ -98,16 +111,19 @@ export default function NoteCard({
   }, [readerOpen]);
 
   useEffect(() => {
-    if (isEditing && textareaRef.current) {
-      textareaRef.current.focus();
-      textareaRef.current.selectionStart = textareaRef.current.selectionEnd =
-        textareaRef.current.value.length;
+    if (!isEditing) return;
+    const el =
+      note.type === "Question" ? questionAnswerRef.current : textareaRef.current;
+    if (el) {
+      el.focus();
+      el.selectionStart = el.selectionEnd = el.value.length;
     }
-  }, [isEditing]);
+  }, [isEditing, note.type]);
 
   useEffect(() => {
+    if (note.type === "Question" && isEditing) return;
     setEditContent(note.content);
-  }, [note.content]);
+  }, [note.content, note.type, isEditing]);
 
   useEffect(() => {
     if (note.type === "Example" && !isEditing) {
@@ -136,9 +152,13 @@ export default function NoteCard({
   const handleEdit = async () => {
     const ok = await onRequestBeginEdit(note.id);
     if (!ok) return;
-    setEditContent(note.content);
-    if (note.type === "Example") {
-      setEditRuleIds(new Set(note.ruleIds ?? []));
+    if (note.type === "Question") {
+      setAnswerDraft(splitQuestionContent(note.content).answer);
+    } else {
+      setEditContent(note.content);
+      if (note.type === "Example") {
+        setEditRuleIds(new Set(note.ruleIds ?? []));
+      }
     }
     setIsEditing(true);
   };
@@ -147,12 +167,37 @@ export default function NoteCard({
     onEndEdit(note.id);
     setIsEditing(false);
     setEditContent(note.content);
+    if (note.type === "Question") {
+      setAnswerDraft(splitQuestionContent(note.content).answer);
+      requestAnimationFrame(() => answerBtnRef.current?.focus());
+    }
     if (note.type === "Example") {
       setEditRuleIds(new Set(note.ruleIds ?? []));
     }
   };
 
   const handleSave = () => {
+    if (note.type === "Question") {
+      const { question } = splitQuestionContent(note.content);
+      const merged = mergeQuestionContent(question, answerDraft);
+      if (merged.length > contentMaxLength) {
+        window.alert(
+          `This note is limited to ${contentMaxLength} characters (question + answer).`,
+        );
+        return;
+      }
+      if (merged === note.content) {
+        onEndEdit(note.id);
+        setIsEditing(false);
+        requestAnimationFrame(() => answerBtnRef.current?.focus());
+        return;
+      }
+      onEdit(note.id, merged);
+      setIsEditing(false);
+      requestAnimationFrame(() => answerBtnRef.current?.focus());
+      return;
+    }
+
     const trimmed = editContent.trim();
     if (!trimmed) {
       onEndEdit(note.id);
@@ -194,6 +239,20 @@ export default function NoteCard({
 
   const contentMaxLength = note.type === "Feature" ? 4000 : 600;
 
+  const isQuestion = note.type === "Question";
+  const { question: questionPart, answer: answerPart } = useMemo(
+    () =>
+      isQuestion
+        ? splitQuestionContent(note.content)
+        : { question: "", answer: "" },
+    [isQuestion, note.content],
+  );
+
+  const questionCharsLeft = isQuestion
+    ? contentMaxLength -
+      mergeQuestionContent(questionPart, answerDraft).length
+    : 0;
+
   const handleDelete = () => {
     if (
       !window.confirm(
@@ -207,7 +266,7 @@ export default function NoteCard({
 
   return (
     <div
-      className={`card${isEditing ? " editing" : ""}${editorOutlineColor ? " card--editor-ring" : ""}`}
+      className={`card${isEditing ? " editing" : ""}${editorOutlineColor ? " card--editor-ring" : ""}${isQuestion ? " card--question" : ""}`}
       style={
         editorOutlineColor
           ? ({
@@ -238,72 +297,163 @@ export default function NoteCard({
         )}
       </div>
 
-      <div className="card-content-block">
-        {note.isAi && !isAgentAuthor && (
-          <span className="card-ai-mark" title="AI-generated" aria-label="AI-generated">
-            AI
-          </span>
-        )}
-        {note.type === "Feature" ? (
-          <pre className="card-content card-content--gherkin">{note.content}</pre>
-        ) : (
-          <div className="card-content card-content--markdown">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkBreaks]}
-              components={MARKDOWN_COMPONENTS}
-            >
-              {note.content}
-            </ReactMarkdown>
+      {isQuestion ? (
+        <div className="card-question-wrap">
+          <div className="card-question-scroll">
+            {note.isAi && !isAgentAuthor && (
+              <span
+                className="card-ai-mark"
+                title="AI-generated"
+                aria-label="AI-generated"
+              >
+                AI
+              </span>
+            )}
+            <div className="card-content card-content--markdown">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkBreaks]}
+                components={MARKDOWN_COMPONENTS}
+              >
+                {questionPart}
+              </ReactMarkdown>
+            </div>
+            {!isEditing && answerPart ? (
+              <>
+                <div className="card-question-answer-label">Answer</div>
+                <div className="card-content card-content--markdown card-question-answer-md">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    components={MARKDOWN_COMPONENTS}
+                  >
+                    {answerPart}
+                  </ReactMarkdown>
+                </div>
+              </>
+            ) : null}
           </div>
-        )}
-      </div>
-
-      <div className="card-edit-area">
-        {isEditing && note.type === "Example" && (
-          <div className="card-edit-rules">
-            <div className="card-edit-rules-label">Linked rules</div>
-            {allRules.length === 0 ? (
-              <p className="card-edit-rules-empty">No rules on the board yet.</p>
+          {isEditing && (
+            <div className="card-question-answer-edit">
+              {lockedByOther && editLock && (
+                <p
+                  className="card-question-lock-hint card-question-lock-hint--inline"
+                  style={
+                    {
+                      ["--lock-accent" as string]: editLock.color,
+                    } as React.CSSProperties
+                  }
+                >
+                  <span className="card-question-lock-dot" aria-hidden />
+                  <span>
+                    <strong>{editLock.lockedBy}</strong> is answering — only one
+                    person can edit at a time.
+                  </span>
+                </p>
+              )}
+              <label
+                className="card-question-answer-label"
+                htmlFor={answerFieldId}
+              >
+                Your answer
+              </label>
+              <textarea
+                id={answerFieldId}
+                ref={questionAnswerRef}
+                className="card-question-answer-textarea card-question-answer-textarea--inline"
+                value={answerDraft}
+                onChange={(e) => setAnswerDraft(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Add your answer…"
+                rows={3}
+                aria-label="Your answer"
+              />
+              <p className="card-question-answer-hint">
+                {questionCharsLeft < 0
+                  ? `${-questionCharsLeft} characters over limit — shorten to save`
+                  : `${questionCharsLeft} characters left · ⌘↵ save · Esc cancel`}
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="card-content-block">
+            {note.isAi && !isAgentAuthor && (
+              <span
+                className="card-ai-mark"
+                title="AI-generated"
+                aria-label="AI-generated"
+              >
+                AI
+              </span>
+            )}
+            {note.type === "Feature" ? (
+              <pre className="card-content card-content--gherkin">{note.content}</pre>
             ) : (
-              <ul className="card-edit-rules-list" role="group">
-                {allRules.map((r) => {
-                  const [, rn] = r.id.split("_");
-                  return (
-                    <li key={r.id}>
-                      <label className="card-edit-rule-option">
-                        <input
-                          type="checkbox"
-                          checked={editRuleIds.has(r.id)}
-                          onChange={() => toggleEditRule(r.id)}
-                        />
-                        <span className="card-edit-rule-id">#{rn}</span>
-                        <span className="card-edit-rule-preview">{r.content}</span>
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div className="card-content card-content--markdown">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkBreaks]}
+                  components={MARKDOWN_COMPONENTS}
+                >
+                  {note.content}
+                </ReactMarkdown>
+              </div>
             )}
           </div>
-        )}
-        <div className="card-edit-main">
-          {isEditing && note.isAi && !isAgentAuthor && (
-            <span className="card-ai-mark" title="AI-generated" aria-label="AI-generated">
-              AI
-            </span>
-          )}
-          <textarea
-            ref={textareaRef}
-            className="card-textarea"
-            maxLength={contentMaxLength}
-            value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
-        </div>
-      </div>
 
-      <div className="card-footer">
+          <div className="card-edit-area">
+            {isEditing && note.type === "Example" && (
+              <div className="card-edit-rules">
+                <div className="card-edit-rules-label">Linked rules</div>
+                {allRules.length === 0 ? (
+                  <p className="card-edit-rules-empty">No rules on the board yet.</p>
+                ) : (
+                  <ul className="card-edit-rules-list" role="group">
+                    {allRules.map((r) => {
+                      const [, rn] = r.id.split("_");
+                      return (
+                        <li key={r.id}>
+                          <label className="card-edit-rule-option">
+                            <input
+                              type="checkbox"
+                              checked={editRuleIds.has(r.id)}
+                              onChange={() => toggleEditRule(r.id)}
+                            />
+                            <span className="card-edit-rule-id">#{rn}</span>
+                            <span className="card-edit-rule-preview">{r.content}</span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
+            <div className="card-edit-main">
+              {isEditing && note.isAi && !isAgentAuthor && (
+                <span
+                  className="card-ai-mark"
+                  title="AI-generated"
+                  aria-label="AI-generated"
+                >
+                  AI
+                </span>
+              )}
+              <textarea
+                ref={textareaRef}
+                className="card-textarea"
+                maxLength={contentMaxLength}
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      <div
+        className={`card-footer${isQuestion ? " card-footer--question" : ""}`}
+      >
         <div className="card-meta">
           <span>{note.author}</span>
           {isOwner && <span className="owner-badge">you</span>}
@@ -321,21 +471,40 @@ export default function NoteCard({
               >
                 Expand
               </button>
-              <button
-                type="button"
-                className="card-btn edit-btn"
-                onClick={() => void handleEdit()}
-                disabled={!hasDisplayName || lockedByOther}
-                title={
-                  !hasDisplayName
-                    ? "Set your display name in the toolbar to edit notes."
-                    : lockedByOther
-                      ? `${editLock.lockedBy} is editing`
-                      : "Edit this note"
-                }
-              >
-                Edit
-              </button>
+              {isQuestion ? (
+                <button
+                  ref={answerBtnRef}
+                  type="button"
+                  className="card-btn edit-btn"
+                  onClick={() => void handleEdit()}
+                  disabled={!hasDisplayName || lockedByOther}
+                  title={
+                    !hasDisplayName
+                      ? "Set your display name in the toolbar to answer."
+                      : lockedByOther && editLock
+                        ? `${editLock.lockedBy} is answering`
+                        : "Add or edit the answer"
+                  }
+                >
+                  Answer
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="card-btn edit-btn"
+                  onClick={() => void handleEdit()}
+                  disabled={!hasDisplayName || lockedByOther}
+                  title={
+                    !hasDisplayName
+                      ? "Set your display name in the toolbar to edit notes."
+                      : lockedByOther && editLock
+                        ? `${editLock.lockedBy} is editing`
+                        : "Edit this note"
+                  }
+                >
+                  Edit
+                </button>
+              )}
             </>
           )}
           {isEditing && (
@@ -351,7 +520,7 @@ export default function NoteCard({
                     : undefined
                 }
               >
-                Save
+                {note.type === "Question" ? "Save answer" : "Save"}
               </button>
               <button type="button" className="card-btn cancel-btn" onClick={handleCancel}>
                 Cancel
@@ -393,6 +562,32 @@ export default function NoteCard({
                 <div className="gherkin-modal-scroll note-read-modal-scroll">
                   {note.type === "Feature" ? (
                     <pre className="card-content card-content--gherkin">{note.content}</pre>
+                  ) : note.type === "Question" ? (
+                    <div className="note-read-question">
+                      <div className="card-content card-content--markdown">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                          components={MARKDOWN_COMPONENTS}
+                        >
+                          {questionPart}
+                        </ReactMarkdown>
+                      </div>
+                      {answerPart ? (
+                        <>
+                          <p className="card-question-answer-label card-question-answer-label--read">
+                            Answer
+                          </p>
+                          <div className="card-content card-content--markdown">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm, remarkBreaks]}
+                              components={MARKDOWN_COMPONENTS}
+                            >
+                              {answerPart}
+                            </ReactMarkdown>
+                          </div>
+                        </>
+                      ) : null}
+                    </div>
                   ) : (
                     <div className="card-content card-content--markdown">
                       <ReactMarkdown
@@ -409,6 +604,7 @@ export default function NoteCard({
           </div>,
           document.body,
         )}
+
     </div>
   );
 }

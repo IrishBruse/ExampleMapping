@@ -947,6 +947,139 @@ main#board::-webkit-scrollbar-thumb:hover {
     display: none;
 }
 
+/* Question cards — question + answer shown as markdown; small box appends answer after <!-- marker --> */
+.card-question-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+}
+.card-question-scroll {
+    flex: 1;
+    min-height: 0;
+    max-height: min(280px, 46vh);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--sticky-scrollbar-thumb) var(--sticky-scrollbar-track);
+}
+.card-question-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+.card-question-scroll::-webkit-scrollbar-track {
+    background: var(--sticky-scrollbar-track);
+    border-radius: 3px;
+}
+.card-question-scroll::-webkit-scrollbar-thumb {
+    background: var(--sticky-scrollbar-thumb);
+    border-radius: 3px;
+}
+.card-question-answer-label {
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(0, 0, 0, 0.55);
+    margin-top: 6px;
+    margin-bottom: 0;
+}
+.card-question-answer-label--read {
+    margin-top: 14px;
+    margin-bottom: 6px;
+    color: var(--muted);
+}
+.card-question-answer-md {
+    width: 100%;
+}
+.card-question-answer-textarea {
+    width: 100%;
+    min-height: 72px;
+    max-height: 140px;
+    padding: 8px 10px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    line-height: 1.5;
+    background: rgba(0, 0, 0, 0.12);
+    border: 1px solid rgba(0, 0, 0, 0.22);
+    border-radius: 3px;
+    color: inherit;
+    resize: vertical;
+    outline: none;
+    scrollbar-width: thin;
+    scrollbar-color: var(--sticky-scrollbar-thumb) var(--sticky-scrollbar-track);
+}
+.card-question-answer-textarea:focus {
+    border-color: rgba(0, 0, 0, 0.45);
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08);
+}
+.card-question-answer-textarea:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.card-question-answer-hint {
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    color: rgba(0, 0, 0, 0.5);
+    margin: 0;
+}
+.card-question-answer-edit {
+    flex-shrink: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+.card-question-answer-textarea--inline {
+    min-height: unset;
+    /* At most three lines of text (line-height 1.5 × font-size) + vertical padding */
+    max-height: calc(1.5em * 3 + 16px);
+    resize: none;
+    overflow-y: auto;
+}
+.card-question-lock-hint--inline {
+    font-size: 9px;
+}
+.note-read-question .card-question-answer-label--read {
+    color: var(--muted);
+}
+.card-question-lock-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 10px;
+    line-height: 1.45;
+    color: rgba(0, 0, 0, 0.78);
+    margin: 0;
+}
+.card-question-lock-hint strong {
+    font-weight: 700;
+}
+.card-question-lock-hint--you {
+    color: rgba(0, 0, 0, 0.72);
+}
+.card-question-lock-dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    margin-top: 3px;
+    border-radius: 50%;
+    background: var(--lock-accent, rgba(0, 0, 0, 0.45));
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.card-question-lock-hint--you .card-question-lock-dot {
+    background: color-mix(in srgb, var(--accent) 85%, #111 15%);
+}
+.card-footer--question {
+    border-top-color: rgba(0, 0, 0, 0.12);
+}
+
 .card-linked-rules {
     display: flex;
     flex-wrap: wrap;
