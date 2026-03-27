@@ -1,6 +1,6 @@
 # Sticky note file schema
 
-Notes are **Markdown** (`.md`) or **Gherkin** (`.feature`) files on disk. The server reads and writes them under the **context directory** from `config.json` → `outputDir` (resolved relative to the project root; default `./context_files`).
+Notes are **Markdown** (`.md`) or **Gherkin** (`.feature`) files on disk. The server reads and writes them under the **context directory**: path from the `MAPPING_OUTPUT_DIR` environment variable (relative to the project root; default `./context_files`).
 
 ## Layout on disk
 

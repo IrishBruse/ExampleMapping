@@ -1,13 +1,18 @@
 {
-    "name": "mapping-tool",
+    "name": "example-mapping",
     "version": "1.0.0",
     "description": "Collaborative Markdown Sticky Generator",
     "main": "dist/server.js",
+    "bin": {
+        "example-mapping": "./dist/cli.js"
+    },
     "scripts": {
         "build:client": "cd client && npm run build",
+        "build:server": "tsc",
         "build": "npm run build:server && npm run build:client",
         "dev": "npm run build:client && tsx watch src/server.ts",
-        "share": "bash scripts/share.sh"
+        "start": "node dist/cli.js",
+        "install-global": "bash scripts/install-global.sh"
     },
     "dependencies": {
         "express": "^4.18.2",

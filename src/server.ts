@@ -21,27 +21,16 @@ import type {
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.resolve(__dirname, "../client/dist");
 
-function loadConfig(): {
-    outputDir: string;
-    accessToken?: string;
-} {
-    const configPath = path.resolve(__dirname, "../config.json");
-    const defaults = { outputDir: "./context_files" };
-    try {
-        const raw = fs.readFileSync(configPath, "utf-8");
-        return { ...defaults, ...JSON.parse(raw) };
-    } catch {
-        console.log("Warning: No config.json found, using defaults");
-        return defaults;
-    }
-}
-
-const config = loadConfig();
 const PROJECT_ROOT = path.resolve(__dirname, "..");
-const CONTEXT_DIR = path.resolve(PROJECT_ROOT, config.outputDir);
+const OUTPUT_DIR_REL = process.env.MAPPING_OUTPUT_DIR?.trim() || "./context_files";
+const CONTEXT_DIR = path.resolve(PROJECT_ROOT, OUTPUT_DIR_REL);
+/** Optional auth secret: query `?token=…` and Socket.io `auth.token` must match. Set via `MAPPING_PASSWORD` or CLI `--password`. */
+const PASSWORD = process.env.MAPPING_PASSWORD?.trim() || undefined;
 
 console.log(`[notes] CONTEXT_DIR (absolute): ${CONTEXT_DIR}`);
-console.log("http://localhost:3000/?token=" + config.accessToken);
+if (PASSWORD) {
+    console.log(`http://localhost:${PORT}/?token=${PASSWORD}`);
+}
 console.log();
 console.log();
 
@@ -167,14 +156,13 @@ function authMiddleware(
     res: express.Response,
     next: express.NextFunction,
 ): void {
-    const { accessToken } = config;
-    if (!accessToken) return next();
+    if (!PASSWORD) return next();
 
     const queryToken = req.query.token as string | undefined;
-    if (queryToken === accessToken) {
+    if (queryToken === PASSWORD) {
         res.setHeader(
             "Set-Cookie",
-            `mapping_token=${encodeURIComponent(accessToken)}; Path=/; Max-Age=${
+            `mapping_token=${encodeURIComponent(PASSWORD)}; Path=/; Max-Age=${
                 7 * 24 * 3600
             }; SameSite=Strict`,
         );
@@ -193,13 +181,13 @@ function authMiddleware(
     }
 
     const cookieToken = parseCookie(req, "mapping_token");
-    if (cookieToken === accessToken) return next();
+    if (cookieToken === PASSWORD) return next();
 
     res.status(401).send(
         "<!doctype html><html><head><title>Access Denied</title></head>" +
             "<body style='font-family:sans-serif;text-align:center;padding:4rem'>" +
             "<h1>401 - Access Denied</h1>" +
-            "<p>Use the shared link provided by your teammate.</p>" +
+            "<p>Use the link your teammate sent you.</p>" +
             "</body></html>",
     );
 }
@@ -227,9 +215,9 @@ if (!fs.existsSync(AGENT_DIR)) {
 }
 
 io.use((socket, next) => {
-    if (!config.accessToken) return next();
+    if (!PASSWORD) return next();
     const token = socket.handshake.auth?.token as string | undefined;
-    if (token === config.accessToken) return next();
+    if (token === PASSWORD) return next();
     console.warn(
         `[socket] auth rejected (invalid or missing token in handshake) socket=${socket.id}`,
     );
@@ -1103,7 +1091,13 @@ fs.watch(CONTEXT_DIR, { recursive: true }, () => {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
-httpServer.listen(PORT, () => {
-    console.log(`\nMapping Tool running at http://localhost:${PORT}`);
-    console.log(`context_files/ -> ${CONTEXT_DIR}\n`);
-});
+export function startServer(): void {
+    httpServer.listen(PORT, () => {
+        console.log(`\nMapping Tool running at http://localhost:${PORT}`);
+        console.log(`context_files/ -> ${CONTEXT_DIR}\n`);
+    });
+}
+
+if (require.main === module) {
+    startServer();
+}

@@ -1,4 +1,4 @@
-// src/types.ts — Shared interfaces for server and client
+// src/types.ts — Common interfaces for server and client
 
 export type NoteType = "Story" | "Rule" | "Example" | "Question" | "Feature";
 
