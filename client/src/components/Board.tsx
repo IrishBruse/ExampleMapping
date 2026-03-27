@@ -87,8 +87,11 @@ export default function Board({
 
     useEffect(() => {
         if (totalVisible > prevCountRef.current && boardRef.current) {
-            const lastCard =
-                boardRef.current.querySelector(".card:last-of-type");
+            // Must use the last .card in document order — :last-of-type matches the last
+            // card per section, and querySelector returns the *first* such node (often the
+            // top Story section), which incorrectly scrolls the board to the top.
+            const cards = boardRef.current.querySelectorAll(".card");
+            const lastCard = cards[cards.length - 1];
             if (lastCard) {
                 lastCard.scrollIntoView({
                     behavior: "smooth",

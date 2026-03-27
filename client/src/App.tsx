@@ -53,6 +53,11 @@ export default function App() {
       console.error("[mapping] socket connect_error:", err.message);
     };
 
+    /** Full reload so state matches server after any disconnect/reconnect cycle */
+    const onReconnect = () => {
+      window.location.reload();
+    };
+
     const onInitNotes = (existing: Note[]) => {
       const byType = existing.reduce<Record<string, number>>((acc, n) => {
         acc[n.type] = (acc[n.type] ?? 0) + 1;
@@ -139,6 +144,7 @@ export default function App() {
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("connect_error", onConnectError);
+    socket.io.on("reconnect", onReconnect);
     socket.on("init_notes", onInitNotes);
     socket.on("note_added", onNoteAdded);
     socket.on("note_updated", onNoteUpdated);
@@ -155,6 +161,7 @@ export default function App() {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
       socket.off("connect_error", onConnectError);
+      socket.io.off("reconnect", onReconnect);
       socket.off("init_notes", onInitNotes);
       socket.off("note_added", onNoteAdded);
       socket.off("note_updated", onNoteUpdated);
