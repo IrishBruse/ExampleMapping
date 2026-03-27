@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Build the app and install the `mapping-tool` CLI globally (npm prefix bin on your PATH).
+# Build the app and install the `example-mapping` CLI globally (npm prefix bin on your PATH).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "Building mapping-tool..."
+echo "Building example-mapping..."
 npm run build
 
 echo "Installing globally..."
 if npm install -g .; then
   echo ""
-  echo "Installed. Try: mapping-tool --help"
+  echo "Installed. Try: example-mapping --help"
 else
   echo ""
   echo "If you saw EACCES, either:"

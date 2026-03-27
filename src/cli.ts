@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * mapping-tool CLI — start the HTTP + Socket.io server
+ * example-mapping CLI — start the HTTP + Socket.io server
  */
 
 function printHelp(): void {

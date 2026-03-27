@@ -1,5 +1,5 @@
 {
-  "name": "mapping-tool-client",
+  "name": "example-mapping-client",
   "private": true,
   "version": "1.0.0",
   "type": "module",
