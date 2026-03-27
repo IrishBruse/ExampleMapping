@@ -24,14 +24,8 @@ const PUBLIC_DIR = path.resolve(__dirname, "../client/dist");
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 const OUTPUT_DIR_REL = process.env.MAPPING_OUTPUT_DIR?.trim() || "./context_files";
 const CONTEXT_DIR = path.resolve(PROJECT_ROOT, OUTPUT_DIR_REL);
-/** Optional auth secret: query `?token=…` and Socket.io `auth.token` must match. Set via `MAPPING_PASSWORD` or CLI `--password`. */
-const PASSWORD = process.env.MAPPING_PASSWORD?.trim() || undefined;
 
 console.log(`[notes] CONTEXT_DIR (absolute): ${CONTEXT_DIR}`);
-if (PASSWORD) {
-    console.log(`http://localhost:${PORT}/?token=${PASSWORD}`);
-}
-console.log();
 console.log();
 
 /** AI-generated files always live under `<outputDir>/agent/` (author folder name is always `agent`). */
@@ -143,60 +137,10 @@ if (!fs.existsSync(CONTEXT_DIR)) {
     console.log(`Created context_files/ at ${CONTEXT_DIR}`);
 }
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
-
-function parseCookie(req: express.Request, name: string): string | undefined {
-    const header = req.headers.cookie ?? "";
-    const match = header.match(new RegExp("(?:^|;\\s*)" + name + "=([^;]*)"));
-    return match ? decodeURIComponent(match[1]) : undefined;
-}
-
-function authMiddleware(
-    req: express.Request,
-    res: express.Response,
-    next: express.NextFunction,
-): void {
-    if (!PASSWORD) return next();
-
-    const queryToken = req.query.token as string | undefined;
-    if (queryToken === PASSWORD) {
-        res.setHeader(
-            "Set-Cookie",
-            `mapping_token=${encodeURIComponent(PASSWORD)}; Path=/; Max-Age=${
-                7 * 24 * 3600
-            }; SameSite=Strict`,
-        );
-        const redirectUrl =
-            req.path +
-            (Object.keys(req.query).length > 1
-                ? "?" +
-                  new URLSearchParams(
-                      Object.entries(
-                          req.query as Record<string, string>,
-                      ).filter(([k]) => k !== "token"),
-                  ).toString()
-                : "");
-        res.redirect(302, redirectUrl);
-        return;
-    }
-
-    const cookieToken = parseCookie(req, "mapping_token");
-    if (cookieToken === PASSWORD) return next();
-
-    res.status(401).send(
-        "<!doctype html><html><head><title>Access Denied</title></head>" +
-            "<body style='font-family:sans-serif;text-align:center;padding:4rem'>" +
-            "<h1>401 - Access Denied</h1>" +
-            "<p>Use the link your teammate sent you.</p>" +
-            "</body></html>",
-    );
-}
-
 // ─── Express ─────────────────────────────────────────────────────────────────
 
 const app = express();
 const httpServer = createServer(app);
-app.use(authMiddleware);
 app.use(express.static(PUBLIC_DIR));
 
 // ─── Socket.io ───────────────────────────────────────────────────────────────
@@ -213,16 +157,6 @@ if (!fs.existsSync(AGENT_DIR)) {
         console.warn(`Could not create agent directory ${AGENT_DIR}:`, e);
     }
 }
-
-io.use((socket, next) => {
-    if (!PASSWORD) return next();
-    const token = socket.handshake.auth?.token as string | undefined;
-    if (token === PASSWORD) return next();
-    console.warn(
-        `[socket] auth rejected (invalid or missing token in handshake) socket=${socket.id}`,
-    );
-    next(new Error("Unauthorized"));
-});
 
 // ─── Per-type counters ────────────────────────────────────────────────────────
 // Scanned from disk on startup; incremented on each new note.
