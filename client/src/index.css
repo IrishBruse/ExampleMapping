@@ -233,7 +233,8 @@ textarea.compose-textarea[data-note-type="Feature"] {
 }
 textarea.compose-textarea[data-note-type="Feature"]:focus {
     border-color: var(--col-feature);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--col-feature) 28%, transparent);
+    box-shadow: 0 0 0 2px
+        color-mix(in srgb, var(--col-feature) 28%, transparent);
 }
 
 .type-hint {
@@ -675,54 +676,134 @@ main#board::-webkit-scrollbar-thumb:hover {
 .card[data-type="Story"] {
     background: var(--col-story);
     color: #111;
-    --sticky-scrollbar-thumb: color-mix(in srgb, var(--col-story) 42%, #141414 58%);
-    --sticky-scrollbar-track: color-mix(in srgb, var(--col-story) 18%, rgba(0, 0, 0, 0.22));
+    --sticky-scrollbar-thumb: color-mix(
+        in srgb,
+        var(--col-story) 42%,
+        #141414 58%
+    );
+    --sticky-scrollbar-track: color-mix(
+        in srgb,
+        var(--col-story) 18%,
+        rgba(0, 0, 0, 0.22)
+    );
 }
 .card[data-type="Rule"] {
     background: var(--col-rule);
     color: #111;
-    --sticky-scrollbar-thumb: color-mix(in srgb, var(--col-rule) 42%, #141414 58%);
-    --sticky-scrollbar-track: color-mix(in srgb, var(--col-rule) 18%, rgba(0, 0, 0, 0.22));
+    --sticky-scrollbar-thumb: color-mix(
+        in srgb,
+        var(--col-rule) 42%,
+        #141414 58%
+    );
+    --sticky-scrollbar-track: color-mix(
+        in srgb,
+        var(--col-rule) 18%,
+        rgba(0, 0, 0, 0.22)
+    );
 }
 .card[data-type="Example"] {
     background: var(--col-example);
     color: #111;
-    --sticky-scrollbar-thumb: color-mix(in srgb, var(--col-example) 42%, #141414 58%);
-    --sticky-scrollbar-track: color-mix(in srgb, var(--col-example) 18%, rgba(0, 0, 0, 0.22));
+    --sticky-scrollbar-thumb: color-mix(
+        in srgb,
+        var(--col-example) 42%,
+        #141414 58%
+    );
+    --sticky-scrollbar-track: color-mix(
+        in srgb,
+        var(--col-example) 18%,
+        rgba(0, 0, 0, 0.22)
+    );
 }
 .card[data-type="Question"] {
     background: var(--col-question);
     color: #111;
-    --sticky-scrollbar-thumb: color-mix(in srgb, var(--col-question) 42%, #141414 58%);
-    --sticky-scrollbar-track: color-mix(in srgb, var(--col-question) 18%, rgba(0, 0, 0, 0.22));
+    --sticky-scrollbar-thumb: color-mix(
+        in srgb,
+        var(--col-question) 42%,
+        #141414 58%
+    );
+    --sticky-scrollbar-track: color-mix(
+        in srgb,
+        var(--col-question) 18%,
+        rgba(0, 0, 0, 0.22)
+    );
 }
 .card[data-type="Feature"] {
     background: var(--col-feature);
     color: #111;
-    --sticky-scrollbar-thumb: color-mix(in srgb, var(--col-feature) 42%, #141414 58%);
-    --sticky-scrollbar-track: color-mix(in srgb, var(--col-feature) 18%, rgba(0, 0, 0, 0.22));
+    --sticky-scrollbar-thumb: color-mix(
+        in srgb,
+        var(--col-feature) 42%,
+        #141414 58%
+    );
+    --sticky-scrollbar-track: color-mix(
+        in srgb,
+        var(--col-feature) 18%,
+        rgba(0, 0, 0, 0.22)
+    );
 }
 
 /* Expanded reader (portal) — same scrollbar hues as the sticky */
 .note-read-modal[data-type="Story"] {
-    --sticky-scrollbar-thumb: color-mix(in srgb, var(--col-story) 42%, #141414 58%);
-    --sticky-scrollbar-track: color-mix(in srgb, var(--col-story) 18%, rgba(0, 0, 0, 0.22));
+    --sticky-scrollbar-thumb: color-mix(
+        in srgb,
+        var(--col-story) 42%,
+        #141414 58%
+    );
+    --sticky-scrollbar-track: color-mix(
+        in srgb,
+        var(--col-story) 18%,
+        rgba(0, 0, 0, 0.22)
+    );
 }
 .note-read-modal[data-type="Rule"] {
-    --sticky-scrollbar-thumb: color-mix(in srgb, var(--col-rule) 42%, #141414 58%);
-    --sticky-scrollbar-track: color-mix(in srgb, var(--col-rule) 18%, rgba(0, 0, 0, 0.22));
+    --sticky-scrollbar-thumb: color-mix(
+        in srgb,
+        var(--col-rule) 42%,
+        #141414 58%
+    );
+    --sticky-scrollbar-track: color-mix(
+        in srgb,
+        var(--col-rule) 18%,
+        rgba(0, 0, 0, 0.22)
+    );
 }
 .note-read-modal[data-type="Example"] {
-    --sticky-scrollbar-thumb: color-mix(in srgb, var(--col-example) 42%, #141414 58%);
-    --sticky-scrollbar-track: color-mix(in srgb, var(--col-example) 18%, rgba(0, 0, 0, 0.22));
+    --sticky-scrollbar-thumb: color-mix(
+        in srgb,
+        var(--col-example) 42%,
+        #141414 58%
+    );
+    --sticky-scrollbar-track: color-mix(
+        in srgb,
+        var(--col-example) 18%,
+        rgba(0, 0, 0, 0.22)
+    );
 }
 .note-read-modal[data-type="Question"] {
-    --sticky-scrollbar-thumb: color-mix(in srgb, var(--col-question) 42%, #141414 58%);
-    --sticky-scrollbar-track: color-mix(in srgb, var(--col-question) 18%, rgba(0, 0, 0, 0.22));
+    --sticky-scrollbar-thumb: color-mix(
+        in srgb,
+        var(--col-question) 42%,
+        #141414 58%
+    );
+    --sticky-scrollbar-track: color-mix(
+        in srgb,
+        var(--col-question) 18%,
+        rgba(0, 0, 0, 0.22)
+    );
 }
 .note-read-modal[data-type="Feature"] {
-    --sticky-scrollbar-thumb: color-mix(in srgb, var(--col-feature) 42%, #141414 58%);
-    --sticky-scrollbar-track: color-mix(in srgb, var(--col-feature) 18%, rgba(0, 0, 0, 0.22));
+    --sticky-scrollbar-thumb: color-mix(
+        in srgb,
+        var(--col-feature) 42%,
+        #141414 58%
+    );
+    --sticky-scrollbar-track: color-mix(
+        in srgb,
+        var(--col-feature) 18%,
+        rgba(0, 0, 0, 0.22)
+    );
 }
 
 /* Minimal AI label — sits before body text (see .card-content-block / .card-edit-main) */
@@ -981,10 +1062,10 @@ main#board::-webkit-scrollbar-thumb:hover {
 }
 .card-question-answer-label {
     font-family: var(--font-display);
-    font-size: 11px;
+    font-size: 14px;
+    font-weight: bold;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(0, 0, 0, 0.55);
     margin-top: 6px;
     margin-bottom: 0;
 }
