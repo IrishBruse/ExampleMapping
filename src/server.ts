@@ -1027,10 +1027,11 @@ fs.watch(CONTEXT_DIR, { recursive: true }, () => {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
-export function startServer(): void {
+export function startServer(onListening?: () => void): void {
     httpServer.listen(PORT, () => {
         console.log(`\nMapping Tool running at http://localhost:${PORT}`);
         console.log(`context_files/ -> ${CONTEXT_DIR}\n`);
+        onListening?.();
     });
 }
 

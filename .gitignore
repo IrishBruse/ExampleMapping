@@ -4,4 +4,3 @@ context_files/
 *.js.map
 client/node_modules/
 client/dist/
-relay/
