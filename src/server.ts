@@ -147,6 +147,8 @@ app.use(express.static(PUBLIC_DIR));
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     cors: { origin: "*" },
+    pingInterval: 20000,
+    pingTimeout: 5000,
 });
 
 if (!fs.existsSync(AGENT_DIR)) {
