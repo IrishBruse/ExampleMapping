@@ -19,4 +19,4 @@
 
 # Quirks
 
--
+- `npm run lint` is listed in Commands but does not exist in `package.json`; the build passes without it.
