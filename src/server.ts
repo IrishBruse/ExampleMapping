@@ -22,7 +22,7 @@ const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.resolve(__dirname, "../client/dist");
 
 const PROJECT_ROOT = path.resolve(__dirname, "..");
-const OUTPUT_DIR_REL = process.env.MAPPING_OUTPUT_DIR?.trim() || "./context_files";
+const OUTPUT_DIR_REL = "./context_files";
 const CONTEXT_DIR = path.resolve(PROJECT_ROOT, OUTPUT_DIR_REL);
 
 console.log(`[notes] CONTEXT_DIR (absolute): ${CONTEXT_DIR}`);
@@ -359,9 +359,7 @@ function rebuildAllRuleFiles(): void {
     }
 }
 
-type ParseNoteResult =
-    | { ok: true; note: Note }
-    | { ok: false; reason: string };
+type ParseNoteResult = { ok: true; note: Note } | { ok: false; reason: string };
 
 /** Parse a single note file; use {@link parseNoteFile} if you only need the note or null. */
 function parseNoteFileResult(relPath: string): ParseNoteResult {
@@ -371,8 +369,7 @@ function parseNoteFileResult(relPath: string): ParseNoteResult {
         if (!split) {
             return {
                 ok: false,
-                reason:
-                    "no YAML frontmatter (expected --- then --- then body); file may be raw markdown without metadata",
+                reason: "no YAML frontmatter (expected --- then --- then body); file may be raw markdown without metadata",
             };
         }
         const fmBlock = split[1];
@@ -413,8 +410,7 @@ function parseNoteFileResult(relPath: string): ParseNoteResult {
             if (!bodyMatch) {
                 return {
                     ok: false,
-                    reason:
-                        "body must start with a markdown H1 line (# …) followed by a newline, then note text (parser is strict)",
+                    reason: "body must start with a markdown H1 line (# …) followed by a newline, then note text (parser is strict)",
                 };
             }
             content = bodyMatch[1]?.trim() ?? "";
@@ -606,8 +602,7 @@ function buildEditLocksPayload(): Record<
     const out: Record<string, { lockedBy: string; color: string }> = {};
     for (const [noteId, sid] of noteEditLocks.entries()) {
         const name = getSocketDisplayName(sid);
-        if (name)
-            out[noteId] = { lockedBy: name, color: getSocketColor(sid) };
+        if (name) out[noteId] = { lockedBy: name, color: getSocketColor(sid) };
     }
     return out;
 }
@@ -797,8 +792,7 @@ io.on("connection", (socket) => {
         const name = p.displayName.trim();
         if (name) {
             for (const [noteId, holder] of noteEditLocks.entries()) {
-                if (holder === socket.id)
-                    broadcastLock(noteId, name, p.color);
+                if (holder === socket.id) broadcastLock(noteId, name, p.color);
             }
         }
     });

@@ -12,6 +12,7 @@
         "build": "npm run build:server && npm run build:client",
         "dev": "npm run build:client && tsx watch src/server.ts",
         "start": "node dist/cli.js",
+        "kill-port": "bash scripts/kill-port.sh",
         "install-global": "bash scripts/install-global.sh"
     },
     "dependencies": {

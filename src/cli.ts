@@ -9,10 +9,10 @@ function printHelp(): void {
     console.log(`Usage: example-mapping [options]
 
 Options:
-  -p, --port N     Listen port (default: 3000 or PORT env)
-  --tunnel         After the server listens, run the AWS relay WebSocket client (needs WS_URL)
-  --ws-url URL     WebSocket URL for the relay (or set WS_URL)
-  -h, --help       Show this help
+  -p, --port N          Listen port (default: 3000 or PORT env)
+  --tunnel URL          After the server listens, run the relay (ws:// or wss://)
+  --tunnel-only URL     Only the relay client, no HTTP server (ws:// or wss://)
+  -h, --help            Show this help
 
 Notes directory defaults to ./context_files under the project; override with MAPPING_OUTPUT_DIR.
 `);
@@ -37,33 +37,73 @@ function wantsHelp(argv: string[]): boolean {
     return argv.some((a) => a === "--help" || a === "-h");
 }
 
-function parseTunnelArgs(argv: string[]): {
-    tunnel: boolean;
-    wsUrl: string | undefined;
-} {
-    let tunnel = false;
-    let wsUrl: string | undefined;
-    for (let i = 0; i < argv.length; i++) {
-        const a = argv[i];
-        if (a === "--tunnel") {
-            tunnel = true;
-            continue;
-        }
-        if (a === "--ws-url") {
-            const v = argv[i + 1];
-            if (v === undefined || v.startsWith("-")) {
-                console.error("--ws-url requires a URL");
-                process.exit(1);
-            }
-            wsUrl = v;
-            i++;
-        }
-    }
-    return { tunnel, wsUrl };
+function isWsUrl(s: string): boolean {
+    return s.startsWith("ws://") || s.startsWith("wss://");
 }
 
-function printTunnelWsUrlRequired(): void {
-    console.error("  example-mapping --tunnel --ws-url $WS_URL");
+function printTunnelUrlHelp(): void {
+    console.error("Example:");
+    console.error(
+        "  example-mapping --tunnel wss://xxxxxxxx.execute-api.us-east-1.amazonaws.com/live",
+    );
+}
+
+function parseTunnelArgs(argv: string[]): {
+    tunnelUrl: string | undefined;
+    tunnelOnlyUrl: string | undefined;
+} {
+    let tunnelUrl: string | undefined;
+    let tunnelOnlyUrl: string | undefined;
+
+    for (let i = 0; i < argv.length; i++) {
+        const a = argv[i];
+
+        if (a === "--tunnel-only") {
+            const v = argv[i + 1];
+            if (
+                v === undefined ||
+                v.startsWith("-") ||
+                !isWsUrl(v)
+            ) {
+                console.error(
+                    "--tunnel-only requires a WebSocket URL (ws:// or wss://)",
+                );
+                printTunnelUrlHelp();
+                process.exit(1);
+            }
+            tunnelOnlyUrl = v;
+            i++;
+            continue;
+        }
+
+        if (a === "--tunnel" || a.startsWith("--tunnel=")) {
+            let url: string | undefined;
+            if (a.startsWith("--tunnel=")) {
+                url = a.slice("--tunnel=".length);
+            } else {
+                url = argv[i + 1];
+                if (url === undefined || url.startsWith("-")) {
+                    console.error(
+                        "--tunnel requires a WebSocket URL (ws:// or wss://)",
+                    );
+                    printTunnelUrlHelp();
+                    process.exit(1);
+                }
+                i++;
+            }
+            if (url.length === 0 || !isWsUrl(url)) {
+                console.error(
+                    "--tunnel URL must start with ws:// or wss://",
+                );
+                printTunnelUrlHelp();
+                process.exit(1);
+            }
+            tunnelUrl = url;
+            continue;
+        }
+    }
+
+    return { tunnelUrl, tunnelOnlyUrl };
 }
 
 function parseDevPort(): number {
@@ -85,19 +125,28 @@ async function main(): Promise<void> {
         process.exit(0);
     }
 
-    const { tunnel, wsUrl } = parseTunnelArgs(argv);
-    if (tunnel) {
+    const { tunnelUrl, tunnelOnlyUrl } = parseTunnelArgs(argv);
+
+    if (tunnelUrl !== undefined && tunnelOnlyUrl !== undefined) {
         console.error("Use either --tunnel or --tunnel-only, not both.");
         process.exit(1);
     }
 
-    const resolvedWsUrl = wsUrl ?? process.env.WS_URL;
-    if (tunnel && (resolvedWsUrl === undefined || resolvedWsUrl === "")) {
-        printTunnelWsUrlRequired();
-        process.exit(1);
-    }
-
     const devPort = parseDevPort();
+
+    if (tunnelOnlyUrl !== undefined) {
+        const relay = startRelayTunnel({
+            wsUrl: tunnelOnlyUrl,
+            devPort,
+        });
+        const shutdown = (): void => {
+            relay.stop();
+            process.exit(0);
+        };
+        process.on("SIGINT", shutdown);
+        process.on("SIGTERM", shutdown);
+        return;
+    }
 
     let relayHandle: RelayTunnelHandle | null = null;
     const shutdownRelay = (): void => {
@@ -107,7 +156,7 @@ async function main(): Promise<void> {
         }
     };
 
-    if (tunnel) {
+    if (tunnelUrl !== undefined) {
         process.on("SIGINT", () => {
             shutdownRelay();
             process.exit(0);
@@ -121,9 +170,9 @@ async function main(): Promise<void> {
     const { startServer } = await import("./server");
 
     startServer(() => {
-        if (!tunnel || resolvedWsUrl === undefined) return;
+        if (tunnelUrl === undefined) return;
         relayHandle = startRelayTunnel({
-            wsUrl: resolvedWsUrl,
+            wsUrl: tunnelUrl,
             devPort,
         });
     });
