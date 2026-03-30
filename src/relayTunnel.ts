@@ -59,6 +59,11 @@ function forward(
             headers as Record<string, string>,
             { host: "localhost" },
         );
+        // Strip Accept-Encoding so Express never responds with compressed
+        // content. The relay sends body as a UTF-8 string or base64, both of
+        // which are incompatible with binary gzip payloads.
+        delete reqHeaders["accept-encoding"];
+        delete reqHeaders["Accept-Encoding"];
         const req = http.request(
             {
                 hostname: "localhost",
@@ -80,7 +85,7 @@ function forward(
                     );
                     const resHeaders: Record<string, string | undefined> = {};
                     for (const [k, v] of Object.entries(res.headers)) {
-                        if (k !== "transfer-encoding") {
+                        if (k !== "transfer-encoding" && k !== "content-encoding") {
                             resHeaders[k] = Array.isArray(v) ? v[0] : v;
                         }
                     }
