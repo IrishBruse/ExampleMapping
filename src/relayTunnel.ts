@@ -5,8 +5,13 @@
 import * as http from "http";
 import WebSocket from "ws";
 
-/** API Gateway WebSocket max frame is 128 KB. Leave headroom for JSON envelope. */
-const CHUNK_SIZE = 90000;
+/**
+ * API Gateway WebSocket max frame is 128 KB (131072 bytes). The chunk data is
+ * JSON-stringified, which can double the size for content rich in " and \
+ * characters (common in minified JS). 50 000 chars * 2× worst-case expansion
+ * = 100 000 bytes — safely under the 128 KB limit.
+ */
+const CHUNK_SIZE = 50000;
 
 type RelayResponse = {
     statusCode: number;
@@ -85,7 +90,14 @@ function forward(
                     );
                     const resHeaders: Record<string, string | undefined> = {};
                     for (const [k, v] of Object.entries(res.headers)) {
-                        if (k !== "transfer-encoding" && k !== "content-encoding") {
+                        // Strip hop-by-hop and encoding headers; also drop
+                        // content-length because after chunking/reassembly the
+                        // byte count may differ, and API Gateway recomputes it.
+                        if (
+                            k !== "transfer-encoding" &&
+                            k !== "content-encoding" &&
+                            k !== "content-length"
+                        ) {
                             resHeaders[k] = Array.isArray(v) ? v[0] : v;
                         }
                     }
