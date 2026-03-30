@@ -633,16 +633,6 @@ main#board::-webkit-scrollbar-thumb:hover {
         3px 3px 0 rgba(0, 0, 0, 0.42),
         0 1px 0 rgba(0, 0, 0, 0.12) inset;
     word-break: break-word;
-    transition:
-        transform 0.15s ease,
-        box-shadow 0.15s ease;
-}
-
-.card:hover {
-    transform: translate(-1px, -2px);
-    box-shadow:
-        4px 4px 0 rgba(0, 0, 0, 0.4),
-        0 1px 0 rgba(0, 0, 0, 0.1) inset;
 }
 
 /* Editor presence ring — dark inner + user color + subtle outer edge */
@@ -653,15 +643,6 @@ main#board::-webkit-scrollbar-thumb:hover {
         0 0 0 8px rgba(0, 0, 0, 0.35),
         3px 3px 0 rgba(0, 0, 0, 0.42),
         0 1px 0 rgba(0, 0, 0, 0.12) inset;
-}
-.card.card--editor-ring:hover {
-    transform: translate(-1px, -2px);
-    box-shadow:
-        0 0 0 2px rgba(0, 0, 0, 0.78),
-        0 0 0 6px var(--editor-ring-color),
-        0 0 0 8px rgba(0, 0, 0, 0.35),
-        4px 4px 0 rgba(0, 0, 0, 0.4),
-        0 1px 0 rgba(0, 0, 0, 0.1) inset;
 }
 @keyframes pop-in {
     from {

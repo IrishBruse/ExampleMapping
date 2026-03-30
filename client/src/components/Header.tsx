@@ -18,7 +18,7 @@ export default function Header({
   return (
     <header>
       <div id="status-dot" className={connected ? "online" : ""} />
-      <h1>MAPPING TOOL</h1>
+      <h1>EXAMPLE MAPPING</h1>
       <div className="header-author">
         <label htmlFor="author-input" className="header-author-label">
           Name
