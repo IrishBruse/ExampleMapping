@@ -68,7 +68,7 @@ export default function NoteCard({
     note.author.trim().toLowerCase() === currentAuthor.trim().toLowerCase();
   const isAgentAuthor =
     note.author.trim().toLowerCase() === "agent";
-  const canDelete = isOwner || note.isAi === true || isAgentAuthor;
+  const canDelete = isOwner || isAgentAuthor;
 
   const hasDisplayName = currentAuthor.trim().length > 0;
   const lockedByOther =
@@ -276,7 +276,6 @@ export default function NoteCard({
       }
       data-id={note.id}
       data-type={note.type}
-      data-ai={note.isAi ? "true" : undefined}
     >
       <div className="card-header">
         <span className="card-type">{note.id}</span>
@@ -300,15 +299,6 @@ export default function NoteCard({
       {isQuestion ? (
         <div className="card-question-wrap">
           <div className="card-question-scroll">
-            {note.isAi && !isAgentAuthor && (
-              <span
-                className="card-ai-mark"
-                title="AI-generated"
-                aria-label="AI-generated"
-              >
-                AI
-              </span>
-            )}
             <div className="card-content card-content--markdown">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkBreaks]}
@@ -377,15 +367,6 @@ export default function NoteCard({
       ) : (
         <>
           <div className="card-content-block">
-            {note.isAi && !isAgentAuthor && (
-              <span
-                className="card-ai-mark"
-                title="AI-generated"
-                aria-label="AI-generated"
-              >
-                AI
-              </span>
-            )}
             <div className="card-content card-content--markdown">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkBreaks]}
@@ -425,15 +406,6 @@ export default function NoteCard({
               </div>
             )}
             <div className="card-edit-main">
-              {isEditing && note.isAi && !isAgentAuthor && (
-                <span
-                  className="card-ai-mark"
-                  title="AI-generated"
-                  aria-label="AI-generated"
-                >
-                  AI
-                </span>
-              )}
               <textarea
                 ref={textareaRef}
                 className="card-textarea"

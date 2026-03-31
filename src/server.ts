@@ -199,10 +199,6 @@ function writeFileEnsuringDir(absFilePath: string, content: string): void {
     fs.writeFileSync(absFilePath, content, "utf-8");
 }
 
-function sourceFrontmatter(note: Note): string {
-    return note.isAi ? "Source: ai\n" : "";
-}
-
 function buildMarkdown(note: Note): string {
     const rulesFm =
         note.type === "Example"
@@ -214,7 +210,7 @@ Author: ${note.author}
 Type: ${note.type}
 ID: ${note.id}
 Time: ${note.timestamp}
-${sourceFrontmatter(note)}${rulesFm}---
+${rulesFm}---
 # ${titleLine}
 ${note.content}
 `;
@@ -311,7 +307,7 @@ Author: ${rule.author}
 Type: ${rule.type}
 ID: ${rule.id}
 Time: ${rule.timestamp}
-${sourceFrontmatter(rule)}${examplesFm}---
+${examplesFm}---
 # Rule
 ${ruleBody}
 `;
@@ -346,11 +342,6 @@ function parseNoteFileResult(relPath: string): ParseNoteResult {
         const typeRaw = fmBlock.match(/^Type:\s*(.+)$/m)?.[1]?.trim();
         const id = fmBlock.match(/^ID:\s*(.+)$/m)?.[1]?.trim();
         const time = fmBlock.match(/^Time:\s*(.+)$/m)?.[1]?.trim();
-        const sourceRaw = fmBlock
-            .match(/^Source:\s*(.+)$/m)?.[1]
-            ?.trim()
-            .toLowerCase();
-
         const missing: string[] = [];
         if (!author) missing.push("Author");
         if (!typeRaw) missing.push("Type");
@@ -404,9 +395,6 @@ function parseNoteFileResult(relPath: string): ParseNoteResult {
             timestamp: time!,
             relPath,
         };
-        if (sourceRaw === "ai") {
-            note.isAi = true;
-        }
         if (noteType === "Example" && parsedRules !== undefined) {
             note.ruleIds = parsedRules;
         }
@@ -628,7 +616,6 @@ function notesEqual(a: Note, b: Note): boolean {
         a.author === b.author &&
         a.type === b.type &&
         a.relPath === b.relPath &&
-        (a.isAi ?? false) === (b.isAi ?? false) &&
         JSON.stringify(a.ruleIds ?? []) === JSON.stringify(b.ruleIds ?? [])
     );
 }
@@ -793,7 +780,7 @@ io.on("connection", (socket) => {
         }
     });
 
-    socket.on("new_note", ({ author, type, content, ruleIds, isAi }) => {
+    socket.on("new_note", ({ author, type, content, ruleIds }) => {
         let resolvedExampleRuleIds: string[] | undefined;
         if (type === "Example") {
             const raw = Array.isArray(ruleIds) ? ruleIds : [];
@@ -817,9 +804,6 @@ io.on("connection", (socket) => {
             fs.mkdirSync(userAbsDir, { recursive: true });
 
         let note: Note = { id, author, type, content, timestamp, relPath };
-        if (isAi) {
-            note = { ...note, isAi: true };
-        }
         if (type === "Example" && resolvedExampleRuleIds) {
             note = { ...note, ruleIds: resolvedExampleRuleIds };
         }
@@ -931,7 +915,6 @@ io.on("connection", (socket) => {
         }
         const canDelete =
             isNoteOwner(socket.id, note) ||
-            note.isAi === true ||
             isAgentAuthorNote(note);
         if (!canDelete) {
             socket.emit("note_error", {

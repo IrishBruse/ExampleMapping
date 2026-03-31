@@ -242,10 +242,8 @@ export default function App() {
         type: NoteType;
         content: string;
         ruleIds?: string[];
-        isAi?: boolean;
       } = { author, type: type as NoteType, content };
       if (ruleIds !== undefined) payload.ruleIds = ruleIds;
-      if (type === "Rule") payload.isAi = true;
       socket.emit("new_note", payload);
     },
     [],

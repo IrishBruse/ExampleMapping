@@ -11,8 +11,6 @@ export interface Note {
     timestamp: string; // ISO 8601 — stored in frontmatter only, not in filename
     /** Relative path inside context_files/, e.g. "alice/Story_4.md" */
     relPath: string;
-    /** True when marked as AI-generated (persisted as `Source: ai` in frontmatter) */
-    isAi?: boolean;
     /**
      * For Example notes only: which rules this example illustrates.
      * Omitted on other types. Persisted in frontmatter as `Rules: Rule_1, Rule_2`.
@@ -101,8 +99,6 @@ export interface ClientToServerEvents {
         content: string;
         /** Required when type is Example: at least one rule id */
         ruleIds?: string[];
-        /** When true, sticky is styled as AI-generated */
-        isAi?: boolean;
     }) => void;
     /** Any user may edit if they hold the edit lock (see begin_edit_note) */
     edit_note: (payload: {

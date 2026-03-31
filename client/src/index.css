@@ -745,19 +745,6 @@ main#board::-webkit-scrollbar-thumb:hover {
     );
 }
 
-/* Minimal AI label — sits before body text (see .card-content-block / .card-edit-main) */
-.card-ai-mark {
-    flex-shrink: 0;
-    font-family: var(--font-mono);
-    font-size: 7px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    color: rgba(0, 0, 0, 0.38);
-    line-height: 1.5;
-    padding-top: 3px;
-    user-select: none;
-}
-
 .card-content-block {
     flex: 1;
     display: flex;
