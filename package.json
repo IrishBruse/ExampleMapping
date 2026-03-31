@@ -7,8 +7,9 @@
         "example-mapping": "./dist/cli.js"
     },
     "scripts": {
+        "build:templates": "node scripts/generate-templates.mjs",
         "build:client": "cd client && npm run build",
-        "build:server": "tsc",
+        "build:server": "npm run build:templates && tsc",
         "build": "npm run build:server && npm run build:client",
         "dev": "npm run build:client && tsx watch src/server.ts",
         "start": "node dist/cli.js",
