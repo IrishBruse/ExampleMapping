@@ -22,8 +22,6 @@
 
 9. **Dark/light theme toggle** — Only a dark theme exists. Some users prefer light mode, especially in bright meeting rooms.
 
-10. **`MAPPING_OUTPUT_DIR` env var is documented in CLI help but not actually read** — The server hardcodes `./context_files`. Either implement it or remove the reference.
-
 ## Lower Impact
 
 11. **Note ordering/sorting** — Notes appear in creation order. Allowing drag-to-reorder or sort by author/date would help organize large boards.

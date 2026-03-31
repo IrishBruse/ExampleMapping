@@ -59,3 +59,26 @@ There is **no test framework or linter configured** in this project. Verify chan
 - Client re-exports server types via `client/src/types.ts` to avoid duplication.
 - Component props are defined as inline interfaces above the component function (e.g., `interface BoardProps`).
 - Use `useMemo`/`useCallback` for derived state; use `useRef` for mutable values that do not trigger re-renders.
+
+# Error Handling Patterns
+
+- Server: wrap all `fs.*` and network calls in `try/catch`. On failure in socket handlers, emit `socket.emit("note_error", { message: "..." })` and return — never throw.
+- Use typed discriminated unions for results: e.g. `type ParseNoteResult = { ok: true; note: Note } | { ok: false; reason: string }`.
+- Client: use `socket.on("note_error", ...)` to display server-side validation failures to the user.
+- Relay tunnel: catch errors in `forward()` and return a 502 response body with the error message as JSON.
+
+# Component Patterns
+
+- Define props as an inline `interface` directly above the component function.
+- Prefer named exports wrapped in `export default` for each component file.
+- Use `useMemo` for expensive derivations from state (e.g. filtering notes by type).
+- Use `useCallback` for event handler props passed to child components.
+- Use `useRef` for mutable DOM references and values that should not trigger re-renders.
+- Modals use `createPortal(..., document.body)` for overlay rendering.
+
+# Server Notes
+
+- The server maintains a `noteIndex: Map<string, Note>` that is kept in sync with disk via `fullResyncNotesFromDisk()`.
+- Notes are written to disk as `.md` files with YAML frontmatter (Author, Type, ID, Time, Source, Rules/Examples).
+- The server uses `fs.watch()` with a 350ms debounce to detect external changes to `context_files/`.
+- Edit locks are managed in memory (`noteEditLocks: Map<string, string>`) — one editor per note at a time.

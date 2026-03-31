@@ -184,12 +184,15 @@ async function main(): Promise<void> {
 
     const { startServer } = await import("./server");
 
-    startServer({ outputDir }, () => {
-        if (tunnelUrl === undefined) return;
-        relayHandle = startRelayTunnel({
-            wsUrl: tunnelUrl,
-            devPort,
-        });
+    startServer({
+        outputDir,
+        onListening: () => {
+            if (tunnelUrl === undefined) return;
+            relayHandle = startRelayTunnel({
+                wsUrl: tunnelUrl,
+                devPort,
+            });
+        },
     });
 }
 
