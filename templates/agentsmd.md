@@ -1,11 +1,4 @@
-# AGENTS.md
-
-> Auto-generated — do not edit by hand.
-> This file tells AI agents how to read and write sticky notes in this directory.
-
----
-
-## How the App Works
+## How this folder works
 
 This is a collaborative Example Mapping tool. Users create sticky notes from a
 browser UI. The notes are persisted as Markdown files inside this directory.
@@ -62,14 +55,14 @@ markdown body that starts with an H1 heading.
 
 ### Common frontmatter fields
 
-| Field  | Required | Description |
-|--------|----------|-------------|
-| Author | yes      | Username of the note creator |
-| Type   | yes      | One of: `Story`, `Rule`, `Example`, `Question` |
-| ID     | yes      | `<Type>_<N>` — must be unique across all users |
-| Time   | yes      | ISO 8601 timestamp |
-| Rules  | Example only | Comma-separated Rule IDs this example illustrates |
-| Examples | Rule only  | Comma-separated Example IDs that illustrate this rule (auto-updated by server) |
+| Field    | Required     | Description                                                                    |
+| -------- | ------------ | ------------------------------------------------------------------------------ |
+| Author   | yes          | Username of the note creator                                                   |
+| Type     | yes          | One of: `Story`, `Rule`, `Example`, `Question`                                 |
+| ID       | yes          | `<Type>_<N>` — must be unique across all users                                 |
+| Time     | yes          | ISO 8601 timestamp                                                             |
+| Rules    | Example only | Comma-separated Rule IDs this example illustrates                              |
+| Examples | Rule only    | Comma-separated Example IDs that illustrate this rule (auto-updated by server) |
 
 ### Story
 
@@ -121,8 +114,7 @@ If the linked Rule is deleted, the Example is deleted too.
 - **Delete notes** — Remove the `.md` file. If you delete a Rule, the server
   will also delete any Examples that only referenced that rule.
 
-- **Write agent files** — Place `.feature`, `.md`, `.txt`, `.json`,
-  `.yaml`, `.ts`, `.js`, or similar text files in `context_files/agent/`.
+- **Write agent files** — Place `.feature` or `.md` or similar text files in `context_files/agent/`.
   These files are broadcast to connected clients but are **not** treated as
   notes. Max file size: 512 KB.
 
@@ -136,8 +128,3 @@ If the linked Rule is deleted, the Example is deleted too.
   by the server. Edit the `Rules` field in Example files instead.
 - Do **not** delete the `agent/` directory — it is watched by the server.
 
----
-
-## Current Notes
-
-{{CURRENT_NOTES}}

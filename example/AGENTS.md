@@ -1,11 +1,4 @@
-# AGENTS.md
-
-> Auto-generated — do not edit by hand.
-> This file tells AI agents how to read and write sticky notes in this directory.
-
----
-
-## How the App Works
+## How this folder works
 
 This is a collaborative Example Mapping tool. Users create sticky notes from a
 browser UI. The notes are persisted as Markdown files inside this directory.
@@ -62,14 +55,14 @@ markdown body that starts with an H1 heading.
 
 ### Common frontmatter fields
 
-| Field  | Required | Description |
-|--------|----------|-------------|
-| Author | yes      | Username of the note creator |
-| Type   | yes      | One of: `Story`, `Rule`, `Example`, `Question` |
-| ID     | yes      | `<Type>_<N>` — must be unique across all users |
-| Time   | yes      | ISO 8601 timestamp |
-| Rules  | Example only | Comma-separated Rule IDs this example illustrates |
-| Examples | Rule only  | Comma-separated Example IDs that illustrate this rule (auto-updated by server) |
+| Field    | Required     | Description                                                                    |
+| -------- | ------------ | ------------------------------------------------------------------------------ |
+| Author   | yes          | Username of the note creator                                                   |
+| Type     | yes          | One of: `Story`, `Rule`, `Example`, `Question`                                 |
+| ID       | yes          | `<Type>_<N>` — must be unique across all users                                 |
+| Time     | yes          | ISO 8601 timestamp                                                             |
+| Rules    | Example only | Comma-separated Rule IDs this example illustrates                              |
+| Examples | Rule only    | Comma-separated Example IDs that illustrate this rule (auto-updated by server) |
 
 ### Story
 
@@ -131,6 +124,10 @@ Time: <ISO-8601>
 ---
 # Question
 <your question>
+
+## Answer
+<users answer do not fill>
+
 ```
 
 ---
@@ -151,8 +148,7 @@ Time: <ISO-8601>
 - **Delete notes** — Remove the `.md` file. If you delete a Rule, the server
   will also delete any Examples that only referenced that rule.
 
-- **Write agent files** — Place `.feature`, `.md`, `.txt`, `.json`,
-  `.yaml`, `.ts`, `.js`, or similar text files in `context_files/agent/`.
+- **Write agent files** — Place `.feature`or `.md` in `context_files/agent/`.
   These files are broadcast to connected clients but are **not** treated as
   notes. Max file size: 512 KB.
 
@@ -166,36 +162,3 @@ Time: <ISO-8601>
   by the server. Edit the `Rules` field in Example files instead.
 - Do **not** delete the `agent/` directory — it is watched by the server.
 
----
-
-## Current Notes
-
-### Storys
-
-- `Story_1` by alice — As a customer, I want to complete my purchase so that I can receive the items I 
-
-### Rules
-
-- `Rule_1` by bob — A payment method must be selected before the order can be placed.
-- `Rule_2` by charlie — Items with insufficient stock must be flagged before checkout.
-- `Rule_3` by alice — The customer must provide a valid shipping address before confirming the order.
-
-### Examples
-
-- `Example_1` by bob (Rules: Rule_1) — Given the cart contains 3 items
-And no payment method is selected
-When the custo
-- `Example_2` by charlie (Rules: Rule_1) — Given the cart contains 1 item
-And the customer has selected credit card
-When th
-- `Example_3` by bob (Rules: Rule_2) — Given the cart contains 5 units of "Widget X"
-And only 2 units are in stock
-When
-- `Example_4` by charlie (Rules: Rule_3) — Given the customer has no saved address
-And the shipping address fields are empt
-- `Example_5` by alice (Rules: Rule_3) — Given the customer enters a postal code that does not match the selected country
-
-### Questions
-
-- `Question_1` by charlie — Should we allow checkout with a partial shipping address if the customer has a s
-- `Question_2` by alice — What happens if stock changes between viewing the checkout page and clicking "Pl

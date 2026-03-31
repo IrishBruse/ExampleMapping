@@ -331,43 +331,14 @@ function rebuildAllRuleFiles(): void {
 }
 
 /**
- * Auto-generate `context_files/AGENTS.md` with note-type templates, file
- * interaction docs, and an index of every note currently on disk.  Called
- * at startup and after any note add / edit / delete so that external
- * agents always see fresh docs.
+ * Auto-generate `context_files/AGENTS.md` with note-type templates and file
+ * interaction docs.  Called at startup.
  */
 function writeAgentsMd(): void {
-    const allNotes = [...noteIndex.values()];
-
-    const byType: Record<NoteType, Note[]> = {
-        Story: [],
-        Rule: [],
-        Example: [],
-        Question: [],
-    };
-    for (const n of allNotes) {
-        byType[n.type].push(n);
-    }
-
-    function noteEntry(n: Note): string {
-        const rules =
-            n.type === "Example" && n.ruleIds && n.ruleIds.length > 0
-                ? ` (Rules: ${n.ruleIds.join(", ")})`
-                : "";
-        return `- \`${n.id}\` by ${n.author}${rules} — ${n.content.slice(0, 80)}`;
-    }
-
-    const indexSection = NOTE_TYPES.map((t) => {
-        const notes = byType[t];
-        if (notes.length === 0) return `### ${t}s\n\n_(none)_`;
-        return `### ${t}s\n\n${notes.map(noteEntry).join("\n")}`;
-    }).join("\n\n");
-
     const md = AGENTSMD_TEMPLATE.replace("{{STORY_TEMPLATE}}", STORY_TEMPLATE)
         .replace("{{RULE_TEMPLATE}}", RULE_TEMPLATE)
         .replace("{{EXAMPLE_TEMPLATE}}", EXAMPLE_TEMPLATE)
-        .replace("{{QUESTION_TEMPLATE}}", QUESTION_TEMPLATE)
-        .replace("{{CURRENT_NOTES}}", indexSection);
+        .replace("{{QUESTION_TEMPLATE}}", QUESTION_TEMPLATE);
 
     try {
         writeFileEnsuringDir(path.join(CONTEXT_DIR, "AGENTS.md"), md);
@@ -738,7 +709,6 @@ function scheduleContextDirEffects(): void {
         try {
             io.emit("agent_files_updated", buildAgentPayload());
             fullResyncNotesFromDisk();
-            writeAgentsMd();
         } catch (e) {
             console.error("[notes] context dir watch / resync error:", e);
         }
@@ -870,7 +840,6 @@ io.on("connection", (socket) => {
             rebuildAllRuleFiles();
         }
 
-        writeAgentsMd();
         io.emit("note_added", note);
     });
 
@@ -954,8 +923,6 @@ io.on("connection", (socket) => {
             rebuildAllRuleFiles();
         }
 
-        writeAgentsMd();
-
         if (noteEditLocks.get(id) === socket.id) {
             noteEditLocks.delete(id);
             broadcastLock(id, null, null);
@@ -989,7 +956,6 @@ io.on("connection", (socket) => {
         for (const rid of removed) {
             io.emit("note_removed", rid);
         }
-        writeAgentsMd();
     });
 
     socket.on("disconnect", () => {
