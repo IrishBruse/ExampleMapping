@@ -116,8 +116,7 @@ If the linked Rule is deleted, the Example is deleted too.
 - **Delete notes** — Remove the \`.md\` file. If you delete a Rule, the server
   will also delete any Examples that only referenced that rule.
 
-- **Write agent files** — Place \`.feature\`, \`.md\`, \`.txt\`, \`.json\`,
-  \`.yaml\`, \`.ts\`, \`.js\`, or similar text files in \`context_files/agent/\`.
+- **Write agent files** — Place \`.feature\` or \`.md\` or similar text files in \`context_files/agent/\`.
   These files are broadcast to connected clients but are **not** treated as
   notes. Max file size: 512 KB.
 

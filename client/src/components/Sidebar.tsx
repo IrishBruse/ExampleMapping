@@ -135,6 +135,23 @@ export default function Sidebar({
                 </div>
             </div>
 
+            <div>
+                <div className="field-label">Content</div>
+                <textarea
+                    id="content-input"
+                    className="compose-textarea"
+                    data-note-type={selectedType}
+                    placeholder="Type your note… (Ctrl+Enter to post)"
+                    maxLength={contentMax}
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                />
+                <div id="char-count">
+                    {content.length} / {contentMax}
+                </div>
+            </div>
+
             {selectedType === "Example" && (
                 <div className="example-rules-field">
                     <div className="field-label">Link to rules</div>
@@ -182,23 +199,6 @@ export default function Sidebar({
                         )}
                 </div>
             )}
-
-            <div>
-                <div className="field-label">Content</div>
-                <textarea
-                    id="content-input"
-                    className="compose-textarea"
-                    data-note-type={selectedType}
-                    placeholder="Type your note… (Ctrl+Enter to post)"
-                    maxLength={contentMax}
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                />
-                <div id="char-count">
-                    {content.length} / {contentMax}
-                </div>
-            </div>
 
             <button id="post-btn" disabled={!canPost} onClick={handlePost}>
                 POST NOTE
