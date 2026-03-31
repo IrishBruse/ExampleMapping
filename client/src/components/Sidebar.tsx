@@ -22,7 +22,6 @@ const CONTENT_MAX: Record<NoteType, number> = {
     Rule: 600,
     Example: 600,
     Question: 600,
-    Feature: 4000,
 };
 
 interface SidebarProps {

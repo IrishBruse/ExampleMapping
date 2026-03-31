@@ -12,7 +12,6 @@
     --col-rule: #4fc3f7;
     --col-example: #81c784;
     --col-question: #f37683;
-    --col-feature: #9575cd;
 
     --font-mono: "Space Mono", monospace;
     --font-display: "Bebas Neue", sans-serif;
@@ -228,14 +227,6 @@ textarea.compose-textarea[data-note-type="Question"]:focus {
     box-shadow: 0 0 0 2px
         color-mix(in srgb, var(--col-question) 28%, transparent);
 }
-textarea.compose-textarea[data-note-type="Feature"] {
-    border-color: color-mix(in srgb, var(--col-feature) 55%, var(--border));
-}
-textarea.compose-textarea[data-note-type="Feature"]:focus {
-    border-color: var(--col-feature);
-    box-shadow: 0 0 0 2px
-        color-mix(in srgb, var(--col-feature) 28%, transparent);
-}
 
 .type-hint {
     margin-top: 10px;
@@ -339,9 +330,6 @@ textarea.compose-textarea[data-note-type="Feature"]:focus {
 .type-btn[data-type="Question"] {
     border-color: var(--col-question);
 }
-.type-btn[data-type="Feature"] {
-    border-color: var(--col-feature);
-}
 .type-btn.selected[data-type="Story"] {
     background: var(--col-story);
     color: #111;
@@ -356,10 +344,6 @@ textarea.compose-textarea[data-note-type="Feature"]:focus {
 }
 .type-btn.selected[data-type="Question"] {
     background: var(--col-question);
-    color: #111;
-}
-.type-btn.selected[data-type="Feature"] {
-    background: var(--col-feature);
     color: #111;
 }
 
@@ -710,20 +694,6 @@ main#board::-webkit-scrollbar-thumb:hover {
         rgba(0, 0, 0, 0.22)
     );
 }
-.card[data-type="Feature"] {
-    background: var(--col-feature);
-    color: #111;
-    --sticky-scrollbar-thumb: color-mix(
-        in srgb,
-        var(--col-feature) 42%,
-        #141414 58%
-    );
-    --sticky-scrollbar-track: color-mix(
-        in srgb,
-        var(--col-feature) 18%,
-        rgba(0, 0, 0, 0.22)
-    );
-}
 
 /* Expanded reader (portal) — same scrollbar hues as the sticky */
 .note-read-modal[data-type="Story"] {
@@ -771,18 +741,6 @@ main#board::-webkit-scrollbar-thumb:hover {
     --sticky-scrollbar-track: color-mix(
         in srgb,
         var(--col-question) 18%,
-        rgba(0, 0, 0, 0.22)
-    );
-}
-.note-read-modal[data-type="Feature"] {
-    --sticky-scrollbar-thumb: color-mix(
-        in srgb,
-        var(--col-feature) 42%,
-        #141414 58%
-    );
-    --sticky-scrollbar-track: color-mix(
-        in srgb,
-        var(--col-feature) 18%,
         rgba(0, 0, 0, 0.22)
     );
 }

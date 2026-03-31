@@ -1,6 +1,6 @@
 // src/types.ts — Common interfaces for server and client
 
-export type NoteType = "Story" | "Rule" | "Example" | "Question" | "Feature";
+export type NoteType = "Story" | "Rule" | "Example" | "Question";
 
 export interface Note {
     /** Global per-type counter, e.g. "Story_4" — unique across all users */

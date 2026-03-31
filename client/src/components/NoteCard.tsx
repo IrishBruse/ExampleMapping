@@ -237,7 +237,7 @@ export default function NoteCard({
     if (e.key === "Escape") handleCancel();
   };
 
-  const contentMaxLength = note.type === "Feature" ? 4000 : 600;
+  const contentMaxLength = 600;
 
   const isQuestion = note.type === "Question";
   const { question: questionPart, answer: answerPart } = useMemo(
@@ -386,18 +386,14 @@ export default function NoteCard({
                 AI
               </span>
             )}
-            {note.type === "Feature" ? (
-              <pre className="card-content card-content--gherkin">{note.content}</pre>
-            ) : (
-              <div className="card-content card-content--markdown">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkBreaks]}
-                  components={MARKDOWN_COMPONENTS}
-                >
-                  {note.content}
-                </ReactMarkdown>
-              </div>
-            )}
+            <div className="card-content card-content--markdown">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkBreaks]}
+                components={MARKDOWN_COMPONENTS}
+              >
+                {note.content}
+              </ReactMarkdown>
+            </div>
           </div>
 
           <div className="card-edit-area">
@@ -560,9 +556,7 @@ export default function NoteCard({
               </header>
               <div className="gherkin-modal-body">
                 <div className="gherkin-modal-scroll note-read-modal-scroll">
-                  {note.type === "Feature" ? (
-                    <pre className="card-content card-content--gherkin">{note.content}</pre>
-                  ) : note.type === "Question" ? (
+                  {note.type === "Question" ? (
                     <div className="note-read-question">
                       <div className="card-content card-content--markdown">
                         <ReactMarkdown

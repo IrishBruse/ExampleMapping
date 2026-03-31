@@ -10,11 +10,10 @@ function printHelp(): void {
 
 Options:
   -p, --port N          Listen port (default: 3000 or PORT env)
+  -o, --output-dir DIR  Notes output directory (default: ./context_files)
   --tunnel URL          After the server listens, run the relay (ws:// or wss://)
   --tunnel-only URL     Only the relay client, no HTTP server (ws:// or wss://)
   -h, --help            Show this help
-
-Notes directory defaults to ./context_files under the project; override with MAPPING_OUTPUT_DIR.
 `);
 }
 
@@ -31,6 +30,21 @@ function applyPortFromArgv(argv: string[]): void {
             i++;
         }
     }
+}
+
+function parseOutputDir(argv: string[]): string | undefined {
+    for (let i = 0; i < argv.length; i++) {
+        const a = argv[i];
+        if (a === "--output-dir" || a === "-o") {
+            const v = argv[i + 1];
+            if (v === undefined || v.startsWith("-")) {
+                console.error(`${a} requires a directory path`);
+                process.exit(1);
+            }
+            return v;
+        }
+    }
+    return undefined;
 }
 
 function wantsHelp(argv: string[]): boolean {
@@ -126,6 +140,7 @@ async function main(): Promise<void> {
     }
 
     const { tunnelUrl, tunnelOnlyUrl } = parseTunnelArgs(argv);
+    const outputDir = parseOutputDir(argv);
 
     if (tunnelUrl !== undefined && tunnelOnlyUrl !== undefined) {
         console.error("Use either --tunnel or --tunnel-only, not both.");
@@ -169,7 +184,7 @@ async function main(): Promise<void> {
 
     const { startServer } = await import("./server");
 
-    startServer(() => {
+    startServer({ outputDir }, () => {
         if (tunnelUrl === undefined) return;
         relayHandle = startRelayTunnel({
             wsUrl: tunnelUrl,

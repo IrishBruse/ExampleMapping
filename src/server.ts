@@ -22,14 +22,16 @@ const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.resolve(__dirname, "../client/dist");
 
 const PROJECT_ROOT = path.resolve(__dirname, "..");
-const OUTPUT_DIR_REL = "./context_files";
-const CONTEXT_DIR = path.resolve(PROJECT_ROOT, OUTPUT_DIR_REL);
+const DEFAULT_OUTPUT_DIR = "./context_files";
 
-console.log(`[notes] CONTEXT_DIR (absolute): ${CONTEXT_DIR}`);
-console.log();
+let CONTEXT_DIR: string;
+let AGENT_DIR: string;
 
-/** AI-generated files always live under `<outputDir>/agent/` (author folder name is always `agent`). */
-const AGENT_DIR = path.join(CONTEXT_DIR, "agent");
+function initDirs(outputDir?: string): void {
+    const raw = outputDir ?? DEFAULT_OUTPUT_DIR;
+    CONTEXT_DIR = path.isAbsolute(raw) ? raw : path.resolve(PROJECT_ROOT, raw);
+    AGENT_DIR = path.join(CONTEXT_DIR, "agent");
+}
 
 const MAX_AGENT_FILE_BYTES = 512 * 1024;
 const AGENT_TEXT_EXT = new Set([
@@ -129,13 +131,7 @@ const NOTE_TYPES: NoteType[] = [
     "Rule",
     "Example",
     "Question",
-    "Feature",
 ];
-
-if (!fs.existsSync(CONTEXT_DIR)) {
-    fs.mkdirSync(CONTEXT_DIR, { recursive: true });
-    console.log(`Created context_files/ at ${CONTEXT_DIR}`);
-}
 
 // ─── Express ─────────────────────────────────────────────────────────────────
 
@@ -151,15 +147,6 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     pingTimeout: 5000,
 });
 
-if (!fs.existsSync(AGENT_DIR)) {
-    try {
-        fs.mkdirSync(AGENT_DIR, { recursive: true });
-        console.log(`Created agent watch directory: ${AGENT_DIR}`);
-    } catch (e) {
-        console.warn(`Could not create agent directory ${AGENT_DIR}:`, e);
-    }
-}
-
 // ─── Per-type counters ────────────────────────────────────────────────────────
 // Scanned from disk on startup; incremented on each new note.
 
@@ -168,7 +155,6 @@ const counters: TypeCounters = {
     Rule: 0,
     Example: 0,
     Question: 0,
-    Feature: 0,
 };
 
 function scanCounters(): void {
@@ -177,7 +163,7 @@ function scanCounters(): void {
         if (!entry.isDirectory()) continue;
         const userDir = path.join(CONTEXT_DIR, entry.name);
         for (const file of fs.readdirSync(userDir)) {
-            const match = file.match(/^([A-Za-z]+)_(\d+)\.(md|feature)$/);
+            const match = file.match(/^([A-Za-z]+)_(\d+)\.md$/);
             if (!match) continue;
             const type = match[1] as NoteType;
             const n = parseInt(match[2], 10);
@@ -234,28 +220,10 @@ ${note.content}
 `;
 }
 
-/** Gherkin body only — no markdown heading (valid .feature for Cucumber-style tools). */
-function buildFeatureFile(note: Note): string {
-    return `---
-Author: ${note.author}
-Type: ${note.type}
-ID: ${note.id}
-Time: ${note.timestamp}
-${sourceFrontmatter(note)}---
-${note.content}
-`;
-}
-
-function noteFileExtension(type: NoteType): "md" | "feature" {
-    return type === "Feature" ? "feature" : "md";
-}
-
 function writeNoteToDisk(note: Note): void {
     const p = absPath(note.relPath);
     if (note.type === "Rule") {
         writeFileEnsuringDir(p, buildRuleMarkdown(note));
-    } else if (note.type === "Feature") {
-        writeFileEnsuringDir(p, buildFeatureFile(note));
     } else {
         writeFileEnsuringDir(p, buildMarkdown(note));
     }
@@ -403,26 +371,22 @@ function parseNoteFileResult(relPath: string): ParseNoteResult {
         const noteType = typeRaw as NoteType;
 
         let content: string;
-        if (noteType === "Feature") {
-            content = afterFm.replace(/\s+$/, "");
-        } else {
-            const bodyMatch = afterFm.match(/^#\s*.+\n([\s\S]+)/m);
-            if (!bodyMatch) {
-                return {
-                    ok: false,
-                    reason: "body must start with a markdown H1 line (# …) followed by a newline, then note text (parser is strict)",
-                };
-            }
-            content = bodyMatch[1]?.trim() ?? "";
-            if (!content) {
-                return {
-                    ok: false,
-                    reason: "no text after the # title line",
-                };
-            }
-            if (noteType === "Rule") {
-                content = stripRuleExamplesSectionFromBody(content);
-            }
+        const bodyMatch = afterFm.match(/^#\s*.+\n([\s\S]+)/m);
+        if (!bodyMatch) {
+            return {
+                ok: false,
+                reason: "body must start with a markdown H1 line (# …) followed by a newline, then note text (parser is strict)",
+            };
+        }
+        content = bodyMatch[1]?.trim() ?? "";
+        if (!content) {
+            return {
+                ok: false,
+                reason: "no text after the # title line",
+            };
+        }
+        if (noteType === "Rule") {
+            content = stripRuleExamplesSectionFromBody(content);
         }
         if (!content) {
             return {
@@ -462,7 +426,7 @@ function warnIgnoredRootMarkdownFiles(): void {
     if (!fs.existsSync(CONTEXT_DIR)) return;
     const rootFiles = fs
         .readdirSync(CONTEXT_DIR)
-        .filter((f) => f.endsWith(".md") || f.endsWith(".feature"));
+        .filter((f) => f.endsWith(".md"));
     if (rootFiles.length === 0) return;
     const sample = rootFiles.slice(0, 15).join(", ");
     const more =
@@ -486,7 +450,7 @@ function loadAllNotes(options?: { logSkipped?: boolean }): Note[] {
         if (!entry.isDirectory()) continue;
         const userDir = path.join(CONTEXT_DIR, entry.name);
         for (const file of fs.readdirSync(userDir)) {
-            if (!file.endsWith(".md") && !file.endsWith(".feature")) continue;
+            if (!file.endsWith(".md")) continue;
             const rel = `${entry.name}/${file}`;
             const r = parseNoteFileResult(rel);
             if (r.ok) {
@@ -506,14 +470,8 @@ function loadAllNotes(options?: { logSkipped?: boolean }): Note[] {
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
-scanCounters();
-
 // In-memory index so edit_note can find notes without a disk scan
 const noteIndex = new Map<string, Note>();
-loadAllNotes({ logSkipped: true }).forEach((n) => noteIndex.set(n.id, n));
-migrateLegacyExampleFiles();
-normalizeExampleRuleLinks();
-rebuildAllRuleFiles();
 
 function logNoteIndexSummary(context: string): void {
     const byType: Partial<Record<NoteType, number>> = {};
@@ -525,12 +483,6 @@ function logNoteIndexSummary(context: string): void {
         Object.keys(byType).length > 0 ? byType : "(empty)",
     );
 }
-
-logNoteIndexSummary("after load + migrations");
-warnIgnoredRootMarkdownFiles();
-console.log(
-    `[notes] Tip: set MAPPING_LOG_SKIPPED_NOTES=1 to log parse skips on each disk resync`,
-);
 
 // ─── Connected users ──────────────────────────────────────────────────────────
 // Maps socket.id → profile (name empty until set_username; color from set_user_color)
@@ -858,8 +810,7 @@ io.on("connection", (socket) => {
         const id = nextId(type);
         const timestamp = new Date().toISOString();
         const userDir = safeUsername(author);
-        const ext = noteFileExtension(type);
-        const relPath = `${userDir}/${id}.${ext}`;
+        const relPath = `${userDir}/${id}.md`;
 
         const userAbsDir = path.join(CONTEXT_DIR, userDir);
         if (!fs.existsSync(userAbsDir))
@@ -1012,20 +963,53 @@ io.on("connection", (socket) => {
     });
 });
 
-// ─── File watcher (agent + external edits: add / change / delete) ────────────
-// fs.watch may pass a null filename on some OSes; debounced full resync handles all cases.
-
-fs.watch(CONTEXT_DIR, { recursive: true }, () => {
-    scheduleContextDirEffects();
-});
-
 // ─── Start ────────────────────────────────────────────────────────────────────
 
-export function startServer(onListening?: () => void): void {
+export interface StartServerOptions {
+    outputDir?: string;
+    onListening?: () => void;
+}
+
+export function startServer(opts: StartServerOptions = {}): void {
+    initDirs(opts.outputDir);
+
+    console.log(`[notes] CONTEXT_DIR (absolute): ${CONTEXT_DIR}`);
+    console.log();
+
+    if (!fs.existsSync(CONTEXT_DIR)) {
+        fs.mkdirSync(CONTEXT_DIR, { recursive: true });
+        console.log(`Created context_files/ at ${CONTEXT_DIR}`);
+    }
+
+    if (!fs.existsSync(AGENT_DIR)) {
+        try {
+            fs.mkdirSync(AGENT_DIR, { recursive: true });
+            console.log(`Created agent watch directory: ${AGENT_DIR}`);
+        } catch (e) {
+            console.warn(`Could not create agent directory ${AGENT_DIR}:`, e);
+        }
+    }
+
+    scanCounters();
+    loadAllNotes({ logSkipped: true }).forEach((n) => noteIndex.set(n.id, n));
+    migrateLegacyExampleFiles();
+    normalizeExampleRuleLinks();
+    rebuildAllRuleFiles();
+
+    logNoteIndexSummary("after load + migrations");
+    warnIgnoredRootMarkdownFiles();
+    console.log(
+        `[notes] Tip: set MAPPING_LOG_SKIPPED_NOTES=1 to log parse skips on each disk resync`,
+    );
+
+    fs.watch(CONTEXT_DIR, { recursive: true }, () => {
+        scheduleContextDirEffects();
+    });
+
     httpServer.listen(PORT, () => {
         console.log(`\nMapping Tool running at http://localhost:${PORT}`);
         console.log(`context_files/ -> ${CONTEXT_DIR}\n`);
-        onListening?.();
+        opts.onListening?.();
     });
 }
 
