@@ -9,7 +9,7 @@ export interface Note {
     type: NoteType;
     content: string;
     timestamp: string; // ISO 8601 — stored in frontmatter only, not in filename
-    /** Relative path inside context_files/, e.g. "alice/Story_4.md" */
+    /** Relative path inside example-mapping/, e.g. "alice/Story_4.md" */
     relPath: string;
     /**
      * For Example notes only: which rules this example illustrates.
@@ -40,7 +40,7 @@ export interface ServerToClientEvents {
     note_added: (note: Note) => void;
     /** Broadcast when a note's content is updated on disk */
     note_updated: (note: Note) => void;
-    /** Broadcast when a file is deleted from context_files/ */
+    /** Broadcast when a file is deleted from example-mapping/ */
     note_removed: (id: string) => void;
     /** Broadcast whenever the set of connected users changes */
     users_changed: (users: ConnectedUserEntry[]) => void;

@@ -8,7 +8,7 @@ browser UI. The notes are persisted as Markdown files inside this directory.
 ### File layout
 
 \`\`\`
-context_files/
+example-mapping/
   AGENTS.md              ← this file (auto-generated)
   agent/                 ← reserved for agent-generated files (.feature, .md, .txt, etc.)
   <username>/
@@ -20,11 +20,11 @@ context_files/
 
 Each note lives under a **user subfolder** whose name is the sanitized username
 (lowercase, alphanumeric, \`_\`, \`-\`, max 32 chars). Files placed directly in
-the \`context_files/\` root are **ignored** by the server.
+the \`example-mapping/\` root are **ignored** by the server.
 
 ### Synchronization
 
-The server watches \`context_files/\` recursively with \`fs.watch()\`. When any
+The server watches \`example-mapping/\` recursively with \`fs.watch()\`. When any
 file is created, modified, or deleted, the server debounces for 350 ms then
 runs a full resync:
 
@@ -105,7 +105,7 @@ If the linked Rule is deleted, the Example is deleted too.
 ### What an agent can do
 
 - **Create notes** — Write a \`.md\` file into any user subfolder (e.g.
-  \`context_files/agent/Story_5.md\`). Use \`agent\` as the Author and
+  \`example-mapping/agent/Story_5.md\`). Use \`agent\` as the Author and
   subfolder name for notes you create. The file must follow the templates
   above. The server will pick it up on the next resync.
 
@@ -116,13 +116,13 @@ If the linked Rule is deleted, the Example is deleted too.
 - **Delete notes** — Remove the \`.md\` file. If you delete a Rule, the server
   will also delete any Examples that only referenced that rule.
 
-- **Write agent files** — Place \`.feature\` or \`.md\` or similar text files in \`context_files/agent/\`.
+- **Write agent files** — Place \`.feature\` or \`.md\` or similar text files in \`example-mapping/agent/\`.
   These files are broadcast to connected clients but are **not** treated as
   notes. Max file size: 512 KB.
 
 ### What to avoid
 
-- Do **not** place \`.md\` files directly in \`context_files/\` root — only
+- Do **not** place \`.md\` files directly in \`example-mapping/\` root — only
   subdirectories are scanned for notes.
 - Do **not** reuse an existing note ID. Each \`<Type>_<N>\` must be unique.
 - Do **not** change the Author or ID fields when editing an existing note.

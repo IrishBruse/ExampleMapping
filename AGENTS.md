@@ -7,7 +7,7 @@
 
 # Project Overview
 
-Collaborative Markdown sticky-note tool. Server: Express + Socket.io (TypeScript, CommonJS). Client: React 18 + Vite (TypeScript, ESM). Notes are persisted as Markdown files with YAML frontmatter under `context_files/`.
+Collaborative Markdown sticky-note tool. Server: Express + Socket.io (TypeScript, CommonJS). Client: React 18 + Vite (TypeScript, ESM). Notes are persisted as Markdown files with YAML frontmatter under `example-mapping/`.
 
 # Build & Run Commands
 
@@ -49,7 +49,7 @@ There is **no test framework or linter configured** in this project. Verify chan
 - `src/relayTunnel.ts` — WebSocket relay for AWS API Gateway
 - `client/src/App.tsx` — React root component, socket event wiring
 - `client/src/components/` — React components (Board, Sidebar, NoteCard, Header, etc.)
-- `context_files/` — Default output directory for Markdown notes
+- `example-mapping/` — Default output directory for Markdown notes
 
 # Architecture Notes
 
@@ -80,5 +80,5 @@ There is **no test framework or linter configured** in this project. Verify chan
 
 - The server maintains a `noteIndex: Map<string, Note>` that is kept in sync with disk via `fullResyncNotesFromDisk()`.
 - Notes are written to disk as `.md` files with YAML frontmatter (Author, Type, ID, Time, Source, Rules/Examples).
-- The server uses `fs.watch()` with a 350ms debounce to detect external changes to `context_files/`.
+- The server uses `fs.watch()` with a 350ms debounce to detect external changes to `example-mapping/`.
 - Edit locks are managed in memory (`noteEditLocks: Map<string, string>`) — one editor per note at a time.

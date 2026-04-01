@@ -10,7 +10,7 @@ function printHelp(): void {
 
 Options:
   -p, --port N          Listen port (default: 3000 or PORT env)
-  -o, --output-dir DIR  Notes output directory (default: ./context_files)
+  -o, --output-dir DIR  Notes output directory (default: ./example-mapping)
   --tunnel URL          After the server listens, run the relay (ws:// or wss://)
   --tunnel-only URL     Only the relay client, no HTTP server (ws:// or wss://)
   -h, --help            Show this help

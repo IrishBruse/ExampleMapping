@@ -28,7 +28,7 @@ import {
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.resolve(__dirname, "../client/dist");
 
-const DEFAULT_OUTPUT_DIR = "./context_files";
+const DEFAULT_OUTPUT_DIR = "./example-mapping";
 
 let CONTEXT_DIR: string;
 let AGENT_DIR: string;
@@ -132,12 +132,7 @@ function buildAgentPayload(): AgentFilesPayload {
     };
 }
 
-const NOTE_TYPES: NoteType[] = [
-    "Story",
-    "Rule",
-    "Example",
-    "Question",
-];
+const NOTE_TYPES: NoteType[] = ["Story", "Rule", "Example", "Question"];
 
 // ─── Express ─────────────────────────────────────────────────────────────────
 
@@ -330,7 +325,7 @@ function rebuildAllRuleFiles(): void {
 }
 
 /**
- * Auto-generate `context_files/AGENTS.md` with note-type templates and file
+ * Auto-generate `example-mapping/AGENTS.md` with note-type templates and file
  * interaction docs.  Called at startup.
  */
 function writeAgentsMd(): void {
@@ -833,7 +828,7 @@ io.on("connection", (socket) => {
         noteIndex.set(id, note);
 
         writeNoteToDisk(note);
-        console.log(`Saved: context_files/${relPath}`);
+        console.log(`Saved: example-mapping/${relPath}`);
 
         if (type === "Example") {
             rebuildAllRuleFiles();
@@ -916,7 +911,7 @@ io.on("connection", (socket) => {
         noteIndex.set(id, updated);
 
         writeNoteToDisk(updated);
-        console.log(`Updated: context_files/${updated.relPath}`);
+        console.log(`Updated: example-mapping/${updated.relPath}`);
 
         if (updated.type === "Example") {
             rebuildAllRuleFiles();
@@ -937,8 +932,7 @@ io.on("connection", (socket) => {
             return;
         }
         const canDelete =
-            isNoteOwner(socket.id, note) ||
-            isAgentAuthorNote(note);
+            isNoteOwner(socket.id, note) || isAgentAuthorNote(note);
         if (!canDelete) {
             socket.emit("note_error", {
                 message: "You can only delete your own notes.",
@@ -984,7 +978,7 @@ export function startServer(opts: StartServerOptions = {}): void {
 
     if (!fs.existsSync(CONTEXT_DIR)) {
         fs.mkdirSync(CONTEXT_DIR, { recursive: true });
-        console.log(`Created context_files/ at ${CONTEXT_DIR}`);
+        console.log(`Created example-mapping/ at ${CONTEXT_DIR}`);
     }
 
     if (!fs.existsSync(AGENT_DIR)) {
@@ -1015,7 +1009,7 @@ export function startServer(opts: StartServerOptions = {}): void {
 
     httpServer.listen(PORT, () => {
         console.log(`\nMapping Tool running at http://localhost:${PORT}`);
-        console.log(`context_files/ -> ${CONTEXT_DIR}\n`);
+        console.log(`example-mapping/ -> ${CONTEXT_DIR}\n`);
         opts.onListening?.();
     });
 }

@@ -129,7 +129,7 @@ export default function AgentFeaturePanel({
       <div className="agent-feature-panel agent-feature-panel--disabled">
         <div className="field-label">Agent — Gherkin drafts</div>
         <p className="agent-feature-panel-msg">
-          No <code className="agent-code">agent</code> folder under your context output directory yet.
+          No <code className="agent-code">agent</code> folder in your output directory yet (default: <code className="agent-code">example-mapping/agent/</code>).
           The agent can place <code className="agent-code">*.feature</code> files there; they will appear here.
         </p>
       </div>
