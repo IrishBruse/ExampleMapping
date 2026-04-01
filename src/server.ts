@@ -28,7 +28,6 @@ import {
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.resolve(__dirname, "../client/dist");
 
-const PROJECT_ROOT = path.resolve(__dirname, "..");
 const DEFAULT_OUTPUT_DIR = "./context_files";
 
 let CONTEXT_DIR: string;
@@ -36,7 +35,7 @@ let AGENT_DIR: string;
 
 function initDirs(outputDir?: string): void {
     const raw = outputDir ?? DEFAULT_OUTPUT_DIR;
-    CONTEXT_DIR = path.isAbsolute(raw) ? raw : path.resolve(PROJECT_ROOT, raw);
+    CONTEXT_DIR = path.isAbsolute(raw) ? raw : path.resolve(process.cwd(), raw);
     AGENT_DIR = path.join(CONTEXT_DIR, "agent");
 }
 
