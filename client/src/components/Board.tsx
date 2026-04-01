@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useMemo } from "react";
 import type { Note } from "../types";
 import NoteCard from "./NoteCard";
 
@@ -39,7 +39,6 @@ export default function Board({
     onStartAddExampleForRule,
 }: BoardProps) {
     const boardRef = useRef<HTMLElement>(null);
-    const prevCountRef = useRef(0);
 
     const visible = useMemo(() => {
         const list = [...notes.values()];
@@ -79,23 +78,6 @@ export default function Board({
             questions.length > 0);
 
     const totalVisible = visible.length;
-
-    useEffect(() => {
-        if (totalVisible > prevCountRef.current && boardRef.current) {
-            // Must use the last .card in document order — :last-of-type matches the last
-            // card per section, and querySelector returns the *first* such node (often the
-            // top Story section), which incorrectly scrolls the board to the top.
-            const cards = boardRef.current.querySelectorAll(".card");
-            const lastCard = cards[cards.length - 1];
-            if (lastCard) {
-                lastCard.scrollIntoView({
-                    behavior: "smooth",
-                    block: "nearest",
-                });
-            }
-        }
-        prevCountRef.current = totalVisible;
-    }, [totalVisible]);
 
     const renderCard = (note: Note) => (
         <NoteCard
