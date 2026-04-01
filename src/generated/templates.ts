@@ -102,6 +102,15 @@ If the linked Rule is deleted, the Example is deleted too.
 
 ## Agent Permissions and Workflow
 
+### File ownership
+
+Agents must **only** create, edit, or delete note files under their **own** user
+subfolder — e.g. \`example-mapping/agent/\` when the agent author is \`agent\`.
+Paths under \`example-mapping/<username>/\` belong to that user; do not modify
+another user’s \`.md\` note files or place new notes in their folder. The
+\`Author\` field in frontmatter must match the subfolder owner for any note you
+touch.
+
 ### What an agent can do
 
 - **Create notes** — Write a \`.md\` file into any user subfolder (e.g.
@@ -122,6 +131,8 @@ If the linked Rule is deleted, the Example is deleted too.
 
 ### What to avoid
 
+- Do **not** edit, create, or delete note files in another user’s subfolder —
+  only change files owned by the agent author (see **File ownership** above).
 - Do **not** place \`.md\` files directly in \`example-mapping/\` root — only
   subdirectories are scanned for notes.
 - Do **not** reuse an existing note ID. Each \`<Type>_<N>\` must be unique.
